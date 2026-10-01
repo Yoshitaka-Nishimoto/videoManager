@@ -54,6 +54,16 @@ PDO と pdo_pgsql が表示されれば、Laravel から PostgreSQL へ接続す
 design.mdを必ず参照して、下記のインストールを設計目的に合わせてインストールしてください。
 4. Graphify の導入、ますグラフ本体の graph.jsonを作成する前に、video_manager内の不要な部分を、.graphifyignoreを作成。
 .graphifyignoreは、.gitignoreの内容と同じとする。
+### 実施内容（完了）
+cp .gitignore .graphifyignore
+sudo dpkg --configure -a                 # dpkg 中断の修復（必要だった場合のみ）
+sudo apt install -y pipx python3-venv
+pipx ensurepath && source ~/.bashrc      # ~/.local/bin を PATH に追加
+pipx install graphifyy                   # graphifyy 0.9.73（コマンド名は graphify）
+graphify install --platform claude       # ~/.claude/skills/graphify を登録
+graphify update . --force                # LLM 不要。graphify-out/ を上書き再生成
+結果：782 ノード・922 エッジ・84 コミュニティ。vendor / node_modules は除外されている。
+コード変更後の更新は graphify update . （API 費用なし）。文書・画像の意味抽出は AI アシスタントで /graphify . を実行。
 
 5．remotion :動画生成用
 https://www.remotion.dev/docs/assets?utm_source=chatgpt.com
