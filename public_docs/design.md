@@ -33,7 +33,7 @@
 「モデル使用量」には異なる二種類があります。
 | 見たいもの | 表示場所 | 指標 |
 |---|---|---|
-| **開発中の Codex 使用量** | Codex の公式 usage dashboard、CLI の `/status` | 利用枠と残量 |
+| **開発中の Codex,Claude,Gemini 使用量** | Codex,Claude,Gemini の公式 usage dashboard、CLI の `/status` | 利用枠と残量 |
 | **VideoManager が呼んだ AI の使用量** | VideoManager 内に Livewire で作る画面 | モデル別・機能別のトークン、推定費用、失敗件数 |
 
 ## 特に、次の機能を設計段階から入れることを勧めます。

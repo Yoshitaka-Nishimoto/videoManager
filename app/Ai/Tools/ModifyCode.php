@@ -25,11 +25,12 @@ class ModifyCode implements Tool
     public function description(): Stringable|string
     {
         return <<<'TXT'
-        Modify a PHP or Blade file by replacing an exact snippet (search) with new code (replace).
-        `search` must match the current file content exactly once; include surrounding lines to make it unique.
-        To create a new file, pass an empty `search` and the whole file as `replace`.
-        The result is parsed with tree-sitter BEFORE it is written. If it has syntax errors the file is NOT
-        changed and the errors are returned: fix your code and call this tool again.
+       PHPやBladeファイルを修正して、特定のスニペット（search）を新しいコード（replace）に置き換えます。
+       `search`は現在のファイル内容と正確に1回だけ一致する必要があります；
+       一意にするために周囲の行も含めてください。
+       新しいファイルを作る場合は、空の`search`を渡し、ファイル全体を`replace`にしてください。
+       結果は書き込む前にtree-sitterで解析されます。構文エラーがある場合、
+       ファイルは変更されずエラーが返されます：コードを修正して、このツールをもう一度呼び出してください。
         TXT;
     }
 

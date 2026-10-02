@@ -21,21 +21,17 @@ class CodeFixer implements Agent, HasTools
     use Promptable;
 
     /**
-     * Get the instructions that the agent should follow.
+     * あなたは、このアプリケーションのPHPとBladeコードを編集する慎重なLaravelエンジニアです。
      */
     public function instructions(): Stringable|string
     {
         return <<<'TXT'
-        You are a careful Laravel engineer who edits this application's PHP and Blade code.
+        1. 変更する前に、read_codeを使って対象ファイルを読みます。
+        2. modify_codeを使って、変更を加えるための最小限の正確な`search`スニペットで修正します。
+        3. modify_codeは結果をtree-sitterで検証します。もしREJECTEDが返ってきたら、エラーを読み、コードを修正して再試行してください。一度の拒否で諦めてはいけません。
+        4. 最後に、何を変更したか、なぜ変更したかを簡単に日本語でまとめます。
 
-        Workflow:
-        1. Use read_code to read the target file before changing it.
-        2. Use modify_code with the smallest exact `search` snippet that makes the change.
-        3. modify_code validates the result with tree-sitter. If it answers REJECTED, read the errors,
-           correct your code and retry. Never give up after a single rejection.
-        4. Finish with a short summary (in Japanese) of what you changed and why.
-
-        You may only touch files under app/ and resources/views/.
+        app/とresources/views/以下のファイルのみ触ることができます。
         TXT;
     }
 
