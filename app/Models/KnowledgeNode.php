@@ -62,6 +62,25 @@ class KnowledgeNode extends Model
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public static function typeLabels(): array
+    {
+        return [
+            self::TYPE_VIDEO => '動画',
+            self::TYPE_ANALYSIS => '分析',
+            self::TYPE_CONCEPT => '概念',
+            self::TYPE_DECISION => '設計判断',
+            self::TYPE_IMPLEMENTATION => '実装',
+        ];
+    }
+
+    public static function typeLabelFor(string $type): string
+    {
+        return self::typeLabels()[$type] ?? $type;
+    }
+
     public static function statusLabelFor(string $status): string
     {
         return match ($status) {

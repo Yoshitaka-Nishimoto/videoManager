@@ -43,6 +43,18 @@ class KnowledgeRevision extends Model
         ];
     }
 
+    public function actionLabel(): string
+    {
+        return match ($this->action) {
+            self::ACTION_CREATE => '作成',
+            self::ACTION_UPDATE => '修正',
+            self::ACTION_CONFIRM => '採用',
+            self::ACTION_DEPRECATE => '廃止',
+            self::ACTION_MERGE => '統合',
+            default => $this->action,
+        };
+    }
+
     /**
      * The node or edge that was changed.
      *
