@@ -9,6 +9,11 @@ Route::get('/', function () {
 
 Route::view('dashboard', 'dashboard')->middleware('auth')->name('dashboard');
 
+Route::middleware('auth')->group(function () {
+    Route::livewire('videos', 'pages::videos.index')->name('videos.index');
+    Route::livewire('videos/{video}', 'pages::videos.show')->name('videos.show');
+});
+
 // TODO: 認証を導入したら auth ミドルウェアに置き換える。それまではローカル環境のみ公開。
 if (app()->environment('local', 'testing')) {
     Route::prefix('admin')->name('admin.')->group(function () {

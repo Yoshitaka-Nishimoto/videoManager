@@ -29,6 +29,7 @@
         <main class="mx-auto max-w-4xl px-6 py-8">
             <h1 class="mb-2 text-xl font-semibold">Dashboard</h1>
             <p class="text-sm text-[#706f6c] dark:text-[#A1A09A]">You're logged in as {{ auth()->user()->email }}.</p>
+            <p class="mt-6"><a href="{{ route('videos.index') }}" class="text-sm underline underline-offset-4">動画一覧へ</a></p>
         </main>
     </body>
 </html>

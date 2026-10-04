@@ -62,6 +62,16 @@ class KnowledgeNode extends Model
         ];
     }
 
+    public static function statusLabelFor(string $status): string
+    {
+        return match ($status) {
+            self::STATUS_CANDIDATE => '候補',
+            self::STATUS_CONFIRMED => '確認済み',
+            self::STATUS_DEPRECATED => '廃止',
+            default => $status,
+        };
+    }
+
     /**
      * @return BelongsTo<Video, $this>
      */
