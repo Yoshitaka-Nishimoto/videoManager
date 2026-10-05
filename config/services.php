@@ -32,6 +32,12 @@ return [
         'key' => env('YOUTUBE_API_KEY'),
     ],
 
+    // 動画分析に使う実装（dummy / gemini）と、Gemini のモデル（空なら SDK の既定）。
+    'video_analyzer' => [
+        'driver' => env('VIDEO_ANALYZER', 'dummy'),
+        'gemini_model' => env('GEMINI_ANALYSIS_MODEL'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

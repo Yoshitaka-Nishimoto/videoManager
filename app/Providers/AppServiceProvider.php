@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\Analysis\DummyVideoAnalyzer;
+use App\Services\Analysis\GeminiVideoAnalyzer;
 use App\Services\Analysis\VideoAnalyzer;
 use App\Services\YouTube\YouTubeClient;
 use Illuminate\Support\ServiceProvider;
@@ -16,8 +17,11 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(YouTubeClient::class, fn () => new YouTubeClient(config('services.youtube.key')));
 
-        // TODO: 本物の AI（Gemini など）で分析する実装ができたら差し替える。
-        $this->app->bind(VideoAnalyzer::class, DummyVideoAnalyzer::class);
+        $this->app->bind(VideoAnalyzer::class, fn ($app) => match (config('services.video_analyzer.driver')) {
+            // .env で空欄（GEMINI_ANALYSIS_MODEL=）のときは SDK の既定モデルを使う。
+            'gemini' => new GeminiVideoAnalyzer(config('services.video_analyzer.gemini_model') ?: null),
+            default => $app->make(DummyVideoAnalyzer::class),
+        });
     }
 
     /**
