@@ -33,9 +33,11 @@ return [
     ],
 
     // 動画分析に使う実装（dummy / gemini）と、Gemini のモデル（空なら SDK の既定）。
+    // 混雑・回数制限のときは、代わりのモデル（カンマ区切り）を順に試す。
     'video_analyzer' => [
         'driver' => env('VIDEO_ANALYZER', 'dummy'),
         'gemini_model' => env('GEMINI_ANALYSIS_MODEL'),
+        'gemini_fallback_models' => array_values(array_filter(array_map('trim', explode(',', (string) env('GEMINI_ANALYSIS_FALLBACK_MODELS', 'gemini-3.5-flash,gemini-2.5-flash'))))),
     ],
 
     'slack' => [

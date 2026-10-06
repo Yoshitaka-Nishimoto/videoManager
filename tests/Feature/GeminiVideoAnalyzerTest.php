@@ -12,6 +12,8 @@ use App\Services\Analysis\GeminiVideoAnalyzer;
 use App\Services\Analysis\VideoAnalyzer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
+use Laravel\Ai\Exceptions\ProviderOverloadedException;
+use Laravel\Ai\Exceptions\RateLimitedException;
 use Laravel\Ai\Files\RemoteVideo;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Tests\TestCase;
@@ -98,5 +100,43 @@ class GeminiVideoAnalyzerTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         app(GeminiVideoAnalyzer::class)->analyze($video, fn () => null);
+    }
+
+    public function test_an_overloaded_model_falls_back_to_the_next_model(): void
+    {
+        VideoAnalyst::fake(fn ($prompt, $attachments, $provider, string $model) => $model === 'model-b'
+            ? ['summary' => '代わりのモデルの要約', 'topics' => [], 'key_points' => [], 'concepts' => []]
+            : throw ProviderOverloadedException::forProvider('gemini'));
+
+        $result = (new GeminiVideoAnalyzer('model-a', ['model-b', 'model-c']))
+            ->analyze(Video::factory()->create(), fn () => null);
+
+        $this->assertSame('代わりのモデルの要約', $result->summary);
+        VideoAnalyst::assertPromptedTimes(2);
+        VideoAnalyst::assertNotPrompted(fn (AgentPrompt $prompt) => $prompt->model === 'model-c');
+    }
+
+    public function test_the_last_error_is_thrown_when_every_model_is_unavailable(): void
+    {
+        VideoAnalyst::fake(fn () => throw RateLimitedException::forProvider('gemini'));
+
+        try {
+            (new GeminiVideoAnalyzer('model-a', ['model-b']))->analyze(Video::factory()->create(), fn () => null);
+            $this->fail('例外が投げられませんでした。');
+        } catch (RateLimitedException) {
+            VideoAnalyst::assertPromptedTimes(2);
+        }
+    }
+
+    public function test_the_configured_fallback_models_are_used(): void
+    {
+        config(['services.video_analyzer.driver' => 'gemini', 'services.video_analyzer.gemini_model' => '', 'services.video_analyzer.gemini_fallback_models' => ['model-b']]);
+        VideoAnalyst::fake(fn ($prompt, $attachments, $provider, string $model) => $model === 'model-b'
+            ? ['summary' => '要約', 'topics' => [], 'key_points' => [], 'concepts' => []]
+            : throw ProviderOverloadedException::forProvider('gemini'));
+
+        app(VideoAnalyzer::class)->analyze(Video::factory()->create(), fn () => null);
+
+        VideoAnalyst::assertPrompted(fn (AgentPrompt $prompt) => $prompt->model === 'model-b');
     }
 }
