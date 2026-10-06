@@ -27,8 +27,9 @@ class RequestVideoAnalysis
                 throw new AnalysisAlreadyRunningException('この動画は分析中です。完了してから再度お試しください。');
             }
 
+            // (video_id, version) は削除済みの版とも重複できないため、削除済みも含めて次の版を決める。
             return $video->analyses()->create([
-                'version' => ($video->analyses()->max('version') ?? 0) + 1,
+                'version' => ($video->analyses()->withTrashed()->max('version') ?? 0) + 1,
                 'status' => VideoAnalysis::STATUS_QUEUED,
                 'requested_by' => $user->id,
             ]);

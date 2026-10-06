@@ -51,6 +51,7 @@ class AiUsageLog extends Model
      */
     public function usable(): MorphTo
     {
-        return $this->morphTo();
+        // 削除済みの分析の使用量も、呼び出し元として表示できるよう含める。
+        return $this->morphTo()->withTrashed();
     }
 }
