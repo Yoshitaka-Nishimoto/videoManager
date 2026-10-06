@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Video;
+use App\Models\VideoAnalysis;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -51,5 +52,17 @@ class VideoTest extends TestCase
         $video = Video::factory()->create();
 
         $this->assertSame(Video::SOURCE_YOUTUBE, $video->refresh()->source_type);
+    }
+
+    public function test_deleted_videos_are_hidden_but_still_reachable_from_their_analyses(): void
+    {
+        $video = Video::factory()->create();
+        $analysis = VideoAnalysis::factory()->for($video)->create();
+
+        $video->delete();
+
+        $this->assertSoftDeleted($video);
+        $this->assertSame(0, Video::count());
+        $this->assertTrue($analysis->refresh()->video->is($video));
     }
 }

@@ -260,7 +260,9 @@ new #[Title('知識の詳細')] class extends Component
             <h2 class="font-semibold">根拠</h2>
             @forelse ($this->sources as $source)
                 <div wire:key="source-{{ $source->id }}" class="{{ $card }} space-y-1 text-sm">
-                    @if ($source->video)
+                    @if ($source->video?->trashed())
+                        <p class="line-clamp-2 font-medium">{{ $source->video->title }} <span class="text-xs {{ $muted }}">（削除済み）</span></p>
+                    @elseif ($source->video)
                         <a href="{{ route('videos.show', $source->video) }}" wire:navigate class="line-clamp-2 font-medium hover:underline">{{ $source->video->title }}</a>
                     @endif
                     @if ($source->videoAnalysis)
@@ -313,7 +315,7 @@ new #[Title('知識の詳細')] class extends Component
                 @if ($node->mergedInto)
                     <p class="text-sm">統合先：<a href="{{ route('knowledge.show', $node->mergedInto) }}" wire:navigate class="underline">{{ $node->mergedInto->title }}</a></p>
                 @endif
-                @if ($node->video)
+                @if ($node->video && ! $node->video->trashed())
                     <p class="text-sm"><a href="{{ route('videos.show', $node->video) }}" wire:navigate class="underline">動画の詳細を開く</a></p>
                 @endif
 

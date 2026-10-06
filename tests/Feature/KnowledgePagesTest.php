@@ -72,6 +72,23 @@ class KnowledgePagesTest extends TestCase
             ->assertSee('品質確認の説明');
     }
 
+    public function test_a_deleted_video_is_shown_as_a_source_without_a_link(): void
+    {
+        $concept = KnowledgeNode::factory()->create();
+        $source = KnowledgeSource::factory()->create([
+            'sourceable_type' => $concept->getMorphClass(),
+            'sourceable_id' => $concept->id,
+        ]);
+        $source->video->update(['title' => '削除した動画']);
+        $source->video->delete();
+
+        $this->get(route('knowledge.show', $concept))
+            ->assertOk()
+            ->assertSee('削除した動画')
+            ->assertSee('（削除済み）')
+            ->assertDontSee(route('videos.show', $source->video_id));
+    }
+
     public function test_adopting_and_editing_on_the_detail_page(): void
     {
         $node = KnowledgeNode::factory()->create(['title' => '画像品質確認']);

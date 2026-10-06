@@ -39,12 +39,12 @@ class VideoAnalysisTest extends TestCase
         $this->assertSame(['topics' => ['laravel']], $analysis->refresh()->content);
     }
 
-    public function test_a_video_with_analyses_cannot_be_deleted(): void
+    public function test_a_video_with_analyses_cannot_be_force_deleted(): void
     {
         $analysis = VideoAnalysis::factory()->create();
 
         $this->expectException(QueryException::class);
 
-        $analysis->video->delete();
+        $analysis->video->forceDelete();
     }
 }

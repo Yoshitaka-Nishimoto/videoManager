@@ -11,7 +11,7 @@ use App\Services\YouTube\YouTubeVideoId;
 use Illuminate\Support\Facades\DB;
 
 /**
- * YouTube の URL から動画を登録し、動画ノードを作る。登録済みの動画なら既存のものを返す。
+ * YouTube の URL から動画を登録し、動画ノードを作る。登録済みの動画なら既存のものを返し、削除済みなら復元する。
  */
 class RegisterYouTubeVideo
 {
@@ -30,7 +30,15 @@ class RegisterYouTubeVideo
         $youtubeId = YouTubeVideoId::parse($url)
             ?? throw new YouTubeException('YouTube の動画 URL として読み取れませんでした。');
 
-        $existing = Video::query()->where('youtube_id', $youtubeId)->first();
+        // youtube_id は削除済みの行とも重複できないため、削除済みも含めて探す。
+        $existing = Video::withTrashed()->where('youtube_id', $youtubeId)->first();
+
+        // 削除済みの動画は、分析履歴や知識ノードを残したまま復元して登録し直す。
+        if ($existing?->trashed()) {
+            $existing->restore();
+
+            return ['video' => $existing, 'created' => true];
+        }
 
         if ($existing !== null) {
             return ['video' => $existing, 'created' => false];

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'source_type',
@@ -27,7 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Video extends Model
 {
     /** @use HasFactory<VideoFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     public const SOURCE_YOUTUBE = 'youtube';
 

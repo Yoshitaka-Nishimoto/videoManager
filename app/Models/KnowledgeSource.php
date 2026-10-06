@@ -54,7 +54,8 @@ class KnowledgeSource extends Model
      */
     public function video(): BelongsTo
     {
-        return $this->belongsTo(Video::class);
+        // 削除済みの動画からも分析や知識の根拠を辿れるよう含める。
+        return $this->belongsTo(Video::class)->withTrashed();
     }
 
     /**

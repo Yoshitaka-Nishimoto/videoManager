@@ -93,6 +93,22 @@ class VideoRegistrationTest extends TestCase
         $this->assertSame(1, Video::count());
     }
 
+    public function test_a_deleted_video_is_restored_when_registered_again(): void
+    {
+        Http::fake();
+        $deleted = Video::factory()->create(['youtube_id' => 'dQw4w9WgXcQ']);
+        $deleted->delete();
+
+        Livewire::test('pages::videos.index')
+            ->set('url', 'https://youtu.be/dQw4w9WgXcQ')
+            ->call('register')
+            ->assertRedirect(route('videos.show', $deleted));
+
+        Http::assertNothingSent();
+        $this->assertNotSoftDeleted($deleted);
+        $this->assertSame(1, Video::withTrashed()->count());
+    }
+
     public function test_an_invalid_url_shows_an_error(): void
     {
         Http::fake();
