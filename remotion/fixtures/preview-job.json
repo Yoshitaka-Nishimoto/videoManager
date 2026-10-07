@@ -1,0 +1,81 @@
+{
+  "kind": "preview",
+  "compositionId": "Production",
+  "inputProps": {
+    "settings": {
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "style": {
+        "font": "Noto Sans JP",
+        "theme": "light",
+        "tone": "落ち着いた解説"
+      }
+    },
+    "scenes": [
+      {
+        "key": "s1",
+        "scene_type": "remotion.title",
+        "title": "導入",
+        "duration_seconds": 3,
+        "narration": "生成の前に、入力画像を確認します。",
+        "caption": null,
+        "transition": "fade",
+        "content": {
+          "title": {
+            "heading": "入力画像の品質確認",
+            "subheading": "Runway の失敗を減らす",
+            "layout": "center"
+          }
+        }
+      },
+      {
+        "key": "s2",
+        "scene_type": "remotion.text",
+        "title": "確認する点",
+        "duration_seconds": 4,
+        "narration": null,
+        "caption": "確認するのは 3 つの点です。",
+        "transition": "fade",
+        "content": {
+          "text": {
+            "heading": "確認する 3 つの点",
+            "items": [
+              "解像度",
+              "顔の向き",
+              "明るさ"
+            ],
+            "reveal": "one_by_one"
+          }
+        }
+      },
+      {
+        "key": "s3",
+        "scene_type": "remotion.diagram",
+        "title": "確認の流れ",
+        "duration_seconds": 2,
+        "narration": null,
+        "caption": null,
+        "transition": "none",
+        "content": {
+          "diagram": {
+            "layout": "horizontal",
+            "nodes": [
+              {
+                "id": "a",
+                "label": "画像を受け取る"
+              }
+            ],
+            "edges": [],
+            "reveal_order": null
+          }
+        }
+      }
+    ]
+  },
+  "outputPath": "out/preview.mp4",
+  "codec": "h264",
+  "imageFormat": "jpeg",
+  "scale": 0.5,
+  "crf": 28
+}
