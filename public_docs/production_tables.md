@@ -188,5 +188,5 @@ runway_task_inputs >── production_assets       （人が用意した素材�
 
 ## 後で決めること
 
-- Remotion のプロジェクトの置き場所と、書き出しをどう呼ぶか（Laravel のジョブから Node.js の書き出しを実行する）。
+- Remotion の書き出しの記録と実行のしかた → remotion_tables.md（プロジェクトの置き場所は未定）。
 - 場面ごとの `content` の形 → scene_content.md で決定済み。
