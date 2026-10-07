@@ -131,4 +131,14 @@ class ProductionScene extends Model
     {
         return $this->belongsTo(RunwayTaskOutput::class, 'selected_output_id');
     }
+
+    /**
+     * この場面の確認用の静止画の書き出し（やり直しを含む）。
+     *
+     * @return HasMany<ProductionRender, $this>
+     */
+    public function renders(): HasMany
+    {
+        return $this->hasMany(ProductionRender::class);
+    }
 }

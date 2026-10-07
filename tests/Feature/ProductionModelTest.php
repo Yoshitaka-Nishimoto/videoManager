@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\KnowledgeNode;
 use App\Models\KnowledgeRelationType;
 use App\Models\ProductionPlan;
+use App\Models\ProductionRender;
 use App\Models\ProductionScene;
 use App\Models\RunwayTask;
 use App\Models\RunwayTaskInput;
@@ -115,5 +116,41 @@ class ProductionModelTest extends TestCase
         $edge = app(KnowledgeCurator::class)->addEdge($video, $realizes, $decision, User::factory()->create());
 
         $this->assertSame('実現する', $edge->relationType->label);
+    }
+
+    public function test_a_still_render_records_its_scene_and_the_input_it_was_given(): void
+    {
+        $render = ProductionRender::factory()->still()->create([
+            'input_props' => ['scene' => ['scene_type' => 'remotion.title', 'content' => ['heading' => '見出し']]],
+            'code_version' => 'e1a3c7fe594c',
+        ]);
+
+        $render->refresh();
+        $this->assertTrue($render->isStill());
+        $this->assertSame(ProductionRender::COMPOSITION_SCENE, $render->composition_id);
+        $this->assertTrue($render->scene->plan->is($render->plan));
+        $this->assertTrue($render->scene->renders->first()->is($render));
+        $this->assertSame('見出し', $render->input_props['scene']['content']['heading']);
+    }
+
+    public function test_preview_and_final_use_the_production_composition(): void
+    {
+        $this->assertSame(ProductionRender::COMPOSITION_PRODUCTION, ProductionRender::compositionFor(ProductionRender::KIND_PREVIEW));
+        $this->assertSame(ProductionRender::COMPOSITION_PRODUCTION, ProductionRender::compositionFor(ProductionRender::KIND_FINAL));
+        $this->assertSame(ProductionRender::COMPOSITION_SCENE, ProductionRender::compositionFor(ProductionRender::KIND_STILL));
+
+        foreach (config('remotion.kinds') as $kind => $settings) {
+            $this->assertSame(ProductionRender::compositionFor($kind), $settings['composition_id']);
+        }
+    }
+
+    public function test_a_completed_final_render_keeps_its_output_details(): void
+    {
+        $render = ProductionRender::factory()->completedFinal()->create()->refresh();
+
+        $this->assertSame(ProductionRender::KIND_FINAL, $render->kind);
+        $this->assertSame('video/mp4', $render->mime_type);
+        $this->assertSame(12_345_678, $render->size_bytes);
+        $this->assertNull($render->production_scene_id);
     }
 }
