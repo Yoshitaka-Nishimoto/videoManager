@@ -36,6 +36,10 @@ new #[Title('知識の詳細')] class extends Component
 
     public string $mergeTargetId = '';
 
+    public string $decisionTitle = '';
+
+    public string $decisionDescription = '';
+
     public function confirm(KnowledgeCurator $curator): void
     {
         $this->run(fn () => $curator->confirmNode($this->node, auth()->user(), $this->reasonOrNull()));
@@ -107,6 +111,21 @@ new #[Title('知識の詳細')] class extends Component
 
             session()->flash('status', "「{$this->node->title}」を統合しました。");
             $this->redirectRoute('knowledge.show', $into, navigate: true);
+        });
+    }
+
+    public function createDecision(KnowledgeCurator $curator): void
+    {
+        $this->validate([
+            'decisionTitle' => 'required|string|max:255',
+            'decisionDescription' => 'nullable|string|max:5000',
+        ], attributes: ['decisionTitle' => '設計判断の名称', 'decisionDescription' => '設計判断の説明']);
+
+        $this->run(function () use ($curator) {
+            $decision = $curator->createDecisionFromConcept($this->node, $this->decisionTitle, $this->decisionDescription ?: null, auth()->user(), $this->reasonOrNull());
+
+            session()->flash('status', "設計判断「{$decision->title}」を作り、「{$this->node->title}」につなぎました。");
+            $this->redirectRoute('knowledge.show', $decision, navigate: true);
         });
     }
 
@@ -191,6 +210,13 @@ new #[Title('知識の詳細')] class extends Component
             && $this->node->status !== KnowledgeNode::STATUS_DEPRECATED;
     }
 
+    #[Computed]
+    public function canCreateDecision(): bool
+    {
+        return $this->node->node_type === KnowledgeNode::TYPE_CONCEPT
+            && $this->node->status !== KnowledgeNode::STATUS_DEPRECATED;
+    }
+
     /**
      * @return Collection<int, KnowledgeNode>
      */
@@ -230,7 +256,7 @@ new #[Title('知識の詳細')] class extends Component
         }
 
         $this->node->refresh();
-        unset($this->sources, $this->edges, $this->revisions, $this->canMerge);
+        unset($this->sources, $this->edges, $this->revisions, $this->canMerge, $this->canCreateDecision);
     }
 };
 ?>
@@ -355,6 +381,20 @@ new #[Title('知識の詳細')] class extends Component
                         @endforeach
                         @error('relationTargetId') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
                         <button type="submit" class="{{ $button }}">追加</button>
+                    </form>
+                </details>
+            @endif
+
+            @if ($this->canCreateDecision)
+                <details class="{{ $card }}">
+                    <summary class="cursor-pointer text-sm font-semibold">この概念から設計判断を作る</summary>
+                    <form wire:submit="createDecision" class="mt-3 space-y-2 text-sm">
+                        <p class="{{ $muted }}">新しい設計判断 →「着想元とする」→「{{ $node->title }}」の関係で登録します。</p>
+                        <input type="text" wire:model="decisionTitle" placeholder="設計判断の名称（例：生成前に入力画像を検査する）" aria-label="設計判断の名称" class="{{ $input }}">
+                        @error('decisionTitle') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                        <textarea wire:model="decisionDescription" rows="3" placeholder="説明（任意）：何を、なぜそう決めたか" aria-label="設計判断の説明" class="{{ $input }}"></textarea>
+                        @error('decisionDescription') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                        <button type="submit" class="{{ $button }}">作成</button>
                     </form>
                 </details>
             @endif

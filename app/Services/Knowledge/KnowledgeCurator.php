@@ -155,6 +155,38 @@ class KnowledgeCurator
     }
 
     /**
+     * 概念から設計判断を作り、「着想元とする」関係で概念につなぐ。人が作ったものなので確認済みとして登録する。
+     */
+    public function createDecisionFromConcept(KnowledgeNode $concept, string $title, ?string $description, User $user, ?string $reason = null): KnowledgeNode
+    {
+        if ($concept->node_type !== KnowledgeNode::TYPE_CONCEPT) {
+            throw new KnowledgeRuleViolation('設計判断を作れるのは、概念ノードからだけです。');
+        }
+
+        $this->ensureNotDeprecated($concept);
+
+        $relationType = KnowledgeRelationType::query()->where('key', KnowledgeRelationType::KEY_INSPIRED_BY)->first()
+            ?? throw new KnowledgeRuleViolation('関係の種類「着想元とする」がありません。KnowledgeRelationTypeSeeder を実行してください。');
+
+        return DB::transaction(function () use ($concept, $title, $description, $user, $reason, $relationType) {
+            $decision = KnowledgeNode::query()->create([
+                'node_type' => KnowledgeNode::TYPE_DECISION,
+                'title' => $title,
+                'description' => $description,
+                'status' => KnowledgeNode::STATUS_CONFIRMED,
+                'proposed_by' => KnowledgeNode::PROPOSED_BY_HUMAN,
+                'confirmed_by' => $user->id,
+                'confirmed_at' => now(),
+            ]);
+
+            $this->recordRevision($decision, KnowledgeRevision::ACTION_CREATE, null, $decision->only(['node_type', 'title', 'description', 'status']), $user, $reason ?? "概念「{$concept->title}」から作成");
+            $this->addEdge($decision, $relationType, $concept, $user, $reason);
+
+            return $decision;
+        });
+    }
+
+    /**
      * $from から同じ種類の有効な関係をたどって $to に着けるか。
      */
     private function reachable(KnowledgeNode $from, KnowledgeNode $to, KnowledgeRelationType $relationType): bool

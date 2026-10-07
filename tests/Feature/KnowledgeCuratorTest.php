@@ -190,6 +190,42 @@ class KnowledgeCuratorTest extends TestCase
         $this->assertSame(KnowledgeNode::STATUS_DEPRECATED, $edge->refresh()->status);
     }
 
+    public function test_a_decision_created_from_a_concept_is_linked_as_its_inspiration(): void
+    {
+        $concept = KnowledgeNode::factory()->create(['title' => '入力画像の品質確認']);
+
+        $decision = $this->curator->createDecisionFromConcept($concept, '生成前に入力画像を検査する', '解像度と顔の向きを確認する', $this->user);
+
+        $this->assertSame(KnowledgeNode::TYPE_DECISION, $decision->node_type);
+        $this->assertSame(KnowledgeNode::STATUS_CONFIRMED, $decision->status);
+        $this->assertSame(KnowledgeNode::PROPOSED_BY_HUMAN, $decision->proposed_by);
+
+        $edge = $decision->outgoingEdges()->sole();
+        $this->assertTrue($edge->targetNode->is($concept));
+        $this->assertSame(KnowledgeRelationType::KEY_INSPIRED_BY, $edge->relationType->key);
+
+        $revision = $decision->revisions()->sole();
+        $this->assertSame(KnowledgeRevision::ACTION_CREATE, $revision->action);
+        $this->assertSame('概念「入力画像の品質確認」から作成', $revision->reason);
+    }
+
+    public function test_a_decision_can_only_be_created_from_an_active_concept(): void
+    {
+        $decision = KnowledgeNode::factory()->decision()->create();
+        $deprecated = KnowledgeNode::factory()->create(['status' => KnowledgeNode::STATUS_DEPRECATED]);
+
+        foreach ([$decision, $deprecated] as $node) {
+            try {
+                $this->curator->createDecisionFromConcept($node, '新しい設計判断', null, $this->user);
+                $this->fail('概念以外・廃止済みの概念から設計判断が作れてしまいました。');
+            } catch (KnowledgeRuleViolation) {
+                // 期待どおり
+            }
+        }
+
+        $this->assertSame(1, KnowledgeNode::where('node_type', KnowledgeNode::TYPE_DECISION)->count());
+    }
+
     private function relationType(string $key): KnowledgeRelationType
     {
         return KnowledgeRelationType::where('key', $key)->sole();

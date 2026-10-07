@@ -148,6 +148,48 @@ class KnowledgePagesTest extends TestCase
         $this->assertSame($into->id, $from->refresh()->merged_into_id);
     }
 
+    public function test_a_decision_can_be_created_from_a_concept_page(): void
+    {
+        $concept = KnowledgeNode::factory()->create(['title' => '入力画像の品質確認']);
+
+        Livewire::test('pages::knowledge.show', ['node' => $concept])
+            ->assertSee('この概念から設計判断を作る')
+            ->set('decisionTitle', '生成前に入力画像を検査する')
+            ->set('reason', '失敗を減らすため')
+            ->call('createDecision')
+            ->assertHasNoErrors();
+
+        $decision = KnowledgeNode::where('node_type', KnowledgeNode::TYPE_DECISION)->sole();
+        $this->assertSame('生成前に入力画像を検査する', $decision->title);
+        $this->assertSame('失敗を減らすため', $decision->revisions()->sole()->reason);
+
+        $this->get(route('knowledge.show', $concept))->assertSee('着想を与えた')->assertSee('生成前に入力画像を検査する');
+    }
+
+    public function test_creating_a_decision_redirects_to_it_and_requires_a_title(): void
+    {
+        $concept = KnowledgeNode::factory()->create();
+
+        Livewire::test('pages::knowledge.show', ['node' => $concept])
+            ->call('createDecision')
+            ->assertHasErrors(['decisionTitle' => 'required']);
+
+        $component = Livewire::test('pages::knowledge.show', ['node' => $concept])
+            ->set('decisionTitle', '生成前に入力画像を検査する')
+            ->call('createDecision');
+
+        $component->assertRedirect(route('knowledge.show', KnowledgeNode::where('node_type', KnowledgeNode::TYPE_DECISION)->sole()));
+    }
+
+    public function test_the_create_decision_form_is_only_on_active_concepts(): void
+    {
+        $decision = KnowledgeNode::factory()->decision()->create();
+        $deprecated = KnowledgeNode::factory()->create(['status' => KnowledgeNode::STATUS_DEPRECATED]);
+
+        $this->get(route('knowledge.show', $decision))->assertOk()->assertDontSee('この概念から設計判断を作る');
+        $this->get(route('knowledge.show', $deprecated))->assertOk()->assertDontSee('この概念から設計判断を作る');
+    }
+
     public function test_an_edge_of_another_node_cannot_be_changed_from_this_page(): void
     {
         $node = KnowledgeNode::factory()->create();
