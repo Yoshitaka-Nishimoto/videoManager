@@ -59,6 +59,22 @@ class KnowledgeRelationTypeSeeder extends Seeder
                 'allowed_target_types' => $knowledge,
             ],
             [
+                'key' => KnowledgeRelationType::KEY_INSPIRED_BY,
+                'label' => '着想元とする',
+                'inverse_label' => '着想を与えた',
+                'description' => '設計判断が、どの概念から着想を得たかを示す。',
+                'allowed_source_types' => [KnowledgeNode::TYPE_DECISION],
+                'allowed_target_types' => [KnowledgeNode::TYPE_CONCEPT],
+            ],
+            [
+                'key' => KnowledgeRelationType::KEY_REALIZES,
+                'label' => '実現する',
+                'inverse_label' => '実現した動画',
+                'description' => '制作した動画が、どの設計判断を実現したものかを示す。',
+                'allowed_source_types' => [KnowledgeNode::TYPE_VIDEO],
+                'allowed_target_types' => [KnowledgeNode::TYPE_DECISION],
+            ],
+            [
                 'key' => 'related_to',
                 'label' => '関連する',
                 'inverse_label' => '関連する',

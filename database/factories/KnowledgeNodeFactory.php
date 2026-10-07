@@ -56,6 +56,17 @@ class KnowledgeNodeFactory extends Factory
     }
 
     /**
+     * A design decision node.
+     */
+    public function decision(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'node_type' => KnowledgeNode::TYPE_DECISION,
+            'proposed_by' => KnowledgeNode::PROPOSED_BY_HUMAN,
+        ]);
+    }
+
+    /**
      * Indicate that a person has confirmed the node.
      */
     public function confirmed(): static

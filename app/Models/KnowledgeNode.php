@@ -160,4 +160,14 @@ class KnowledgeNode extends Model
     {
         return $this->morphMany(KnowledgeRevision::class, 'revisable');
     }
+
+    /**
+     * この設計判断から作る動画の制作。
+     *
+     * @return HasMany<VideoProduction, $this>
+     */
+    public function productions(): HasMany
+    {
+        return $this->hasMany(VideoProduction::class, 'decision_node_id');
+    }
 }

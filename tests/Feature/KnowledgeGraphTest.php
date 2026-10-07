@@ -140,7 +140,7 @@ class KnowledgeGraphTest extends TestCase
         $this->seed(KnowledgeRelationTypeSeeder::class);
         $this->seed(KnowledgeRelationTypeSeeder::class);
 
-        $this->assertSame(6, KnowledgeRelationType::count());
+        $this->assertSame(8, KnowledgeRelationType::count());
         $this->assertTrue(KnowledgeRelationType::where('key', 'related_to')->value('allow_cycle'));
         $this->assertFalse(KnowledgeRelationType::where('key', 'prerequisite_of')->value('allow_cycle'));
     }
