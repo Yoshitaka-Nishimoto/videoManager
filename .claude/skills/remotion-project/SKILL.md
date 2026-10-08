@@ -58,6 +58,16 @@ docker compose exec -T -u sail laravel.test bash -c 'cd remotion && <コマン�
 4. 座標や色は部品の中で決める（Gemini には決めさせない設計）。
 5. `fixtures/sample.json` にその種類の場面を足し、静止画を書き出して画像を確認する。
 
+## Laravel 側
+
+| 場所 | 役割 |
+|---|---|
+| `app/Actions/Productions/RequestProductionRender.php` | 書き出しの依頼。production_renders の行を作り、ジョブをキューに入れる |
+| `app/Jobs/RenderProduction.php` | `render.mjs` を実行して進捗と結果を記録する。キューの接続は `remotion`（専用のワーカー：`queue:work remotion --tries=1 --timeout=1900`） |
+| `app/Services/Remotion/RemotionInput.php` | 制作案と場面から入力（input props）を作る |
+| `resources/views/pages/productions/` | 制作の一覧と詳細（静止画・動画の書き出しボタン、履歴、再生） |
+| `ProductionRenderFileController` | 書き出したファイルを返す（`production-renders/{render}/file`） |
+
 ## 書き出しの記録との対応
 
 `render.mjs` の `done` の値は `production_renders` の列に入れる：`sizeBytes` → `size_bytes`、`renderMs` → `render_ms`、`width` / `height`（倍率を掛けた実際の大きさ）、`fps`、`durationInFrames` → `duration_in_frames`、`frame`、`remotionVersion` → `remotion_version`。`progress` の `stage` / `progress` / `renderedFrames` / `encodedFrames` も同名の列に入れる。

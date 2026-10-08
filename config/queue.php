@@ -44,6 +44,18 @@ return [
             'after_commit' => false,
         ],
 
+        // Remotion の書き出し専用（RenderProduction）。書き出しは最大 30 分かかるため、retry_after を
+        // 書き出しの打ち切り（config/remotion.php の timeout）より長くし、実行中のジョブが二重に動かないようにする。
+        // ワーカー：php artisan queue:work remotion --tries=1 --timeout=1900
+        'remotion' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => 'remotion',
+            'retry_after' => (int) env('REMOTION_TIMEOUT', 1800) + 300,
+            'after_commit' => false,
+        ],
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => env('BEANSTALKD_QUEUE_HOST', 'localhost'),

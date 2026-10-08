@@ -40,6 +40,9 @@ class RenderProduction implements ShouldQueue
     {
         // 書き出しの打ち切りより少し長くし、ジョブより先にプロセスを止めて記録を残せるようにする。
         $this->timeout = (int) config('remotion.timeout') + 60;
+
+        // 長い書き出しで分析などのジョブを待たせないよう、専用の接続（キュー）で動かす。
+        $this->onConnection('remotion');
     }
 
     public function handle(): void

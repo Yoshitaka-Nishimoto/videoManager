@@ -63,6 +63,18 @@ class ProductionPlan extends Model
         ];
     }
 
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            self::STATUS_GENERATING => '作成中',
+            self::STATUS_FAILED => '失敗',
+            self::STATUS_CANDIDATE => '候補',
+            self::STATUS_CONFIRMED => '確認済み',
+            self::STATUS_DEPRECATED => '廃止',
+            default => $this->status,
+        };
+    }
+
     /**
      * 場面を直接修正できるか。確認済み・廃止の版は新しい版を作って直す。
      */

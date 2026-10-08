@@ -19,6 +19,7 @@
                         <nav class="flex gap-4 text-sm">
                             <a href="{{ route('videos.index') }}" wire:navigate @class(['underline underline-offset-4' => request()->routeIs('videos.*')])>動画</a>
                             <a href="{{ route('knowledge.index') }}" wire:navigate @class(['underline underline-offset-4' => request()->routeIs('knowledge.*')])>知識</a>
+                            <a href="{{ route('productions.index') }}" wire:navigate @class(['underline underline-offset-4' => request()->routeIs('productions.*')])>制作</a>
                             <a href="{{ route('ai-usage.index') }}" wire:navigate @class(['underline underline-offset-4' => request()->routeIs('ai-usage.*')])>AI使用量</a>
                         </nav>
                     </div>

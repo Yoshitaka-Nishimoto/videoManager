@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CodeChangeController;
+use App\Http\Controllers\ProductionRenderFileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -15,6 +16,9 @@ Route::middleware('auth')->group(function () {
     Route::livewire('knowledge', 'pages::knowledge.index')->name('knowledge.index');
     Route::livewire('knowledge/{node}', 'pages::knowledge.show')->name('knowledge.show');
     Route::livewire('ai-usage', 'pages::ai-usage.index')->name('ai-usage.index');
+    Route::livewire('productions', 'pages::productions.index')->name('productions.index');
+    Route::livewire('productions/{production}', 'pages::productions.show')->name('productions.show');
+    Route::get('production-renders/{render}/file', ProductionRenderFileController::class)->name('production-renders.file');
 });
 
 // TODO: 認証を導入したら auth ミドルウェアに置き換える。それまではローカル環境のみ公開。

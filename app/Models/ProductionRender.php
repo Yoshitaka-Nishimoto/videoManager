@@ -120,6 +120,43 @@ class ProductionRender extends Model
         return $this->kind === self::KIND_STILL;
     }
 
+    public function isInProgress(): bool
+    {
+        return in_array($this->status, [self::STATUS_QUEUED, self::STATUS_RUNNING], true);
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === self::STATUS_COMPLETED && $this->storage_path !== null;
+    }
+
+    public function kindLabel(): string
+    {
+        return match ($this->kind) {
+            self::KIND_STILL => '静止画',
+            self::KIND_PREVIEW => '確認用',
+            self::KIND_FINAL => '完成版',
+            default => $this->kind,
+        };
+    }
+
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            self::STATUS_QUEUED => '待機中',
+            self::STATUS_RUNNING => match ($this->stage) {
+                self::STAGE_BUNDLING => '準備中',
+                self::STAGE_RENDERING => '描画中',
+                self::STAGE_ENCODING => 'エンコード中',
+                self::STAGE_MUXING => '仕上げ中',
+                default => '実行中',
+            },
+            self::STATUS_COMPLETED => '完了',
+            self::STATUS_FAILED => '失敗',
+            default => $this->status,
+        };
+    }
+
     /**
      * @return BelongsTo<VideoProduction, $this>
      */

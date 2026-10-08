@@ -68,6 +68,25 @@ graphify update . --force                # LLM 不要。graphify-out/ を上書�
 5．remotion :動画生成用
 https://www.remotion.dev/docs/assets?utm_source=chatgpt.com
 
+### 実施内容（完了）
+- `remotion/` に Remotion のプロジェクトを置き、Sail のコンテナ内で書き出す（Chrome の動作に必要なライブラリと ffmpeg はコンテナに入っている）。
+- コマンドはコンテナ内で **sail ユーザー**で実行する（root だと node_modules などが root の所有になる）。
+
+```bash
+docker compose exec -T -u sail laravel.test bash -c 'cd remotion && npm install'
+```
+
+### 書き出しのワーカー
+書き出し（RenderProduction）は専用のキューの接続 `remotion` で動く。最大 30 分かかるため、通常のワーカー（分析など）とは分けて起動する。
+
+```bash
+./vendor/bin/sail artisan queue:work                                    # 通常（分析など）
+./vendor/bin/sail artisan queue:work remotion --tries=1 --timeout=1900  # Remotion の書き出し
+```
+
+`./vendor/bin/sail artisan dev` で起動した場合は、両方のワーカーが自動で起動する。
+書き出しの打ち切りは `.env` の `REMOTION_TIMEOUT`（秒、既定 1800）。変えたときは `--timeout` を「REMOTION_TIMEOUT＋100」程度にする。
+
 6.　Runway api による、高度な動画生成
 
 7.　動画設計に必要なもの

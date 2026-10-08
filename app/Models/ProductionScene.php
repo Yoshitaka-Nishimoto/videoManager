@@ -88,6 +88,17 @@ class ProductionScene extends Model
         ];
     }
 
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            self::STATUS_PENDING => '未生成',
+            self::STATUS_GENERATING => '生成中',
+            self::STATUS_READY => '準備完了',
+            self::STATUS_FAILED => '失敗',
+            default => $this->status,
+        };
+    }
+
     /**
      * Runway で生成する場面か。
      */

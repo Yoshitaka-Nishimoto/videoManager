@@ -6,6 +6,7 @@ use App\Services\Analysis\DummyVideoAnalyzer;
 use App\Services\Analysis\GeminiVideoAnalyzer;
 use App\Services\Analysis\VideoAnalyzer;
 use App\Services\YouTube\YouTubeClient;
+use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -32,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // php artisan dev で、Remotion の書き出し専用のワーカーも起動する（config/queue.php の remotion）。
+        DevCommands::artisan('queue:listen remotion --tries=1 --timeout=0', 'remotion');
     }
 }
