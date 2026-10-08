@@ -93,6 +93,11 @@ new #[Title('動画一覧')] class extends Component
                                 <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">
                                     {{ $video->channel_title ?? '—' }} · {{ Video::formatSeconds($video->duration_seconds) }}
                                 </p>
+                                @if ($video->statistics_fetched_at)
+                                    <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">
+                                        再生 {{ Video::formatCount($video->view_count) }} 回 · 高評価 {{ Video::formatCount($video->like_count) }}
+                                    </p>
+                                @endif
                                 <p class="text-xs">
                                     @if ($video->latestAnalysis)
                                         分析：{{ $video->latestAnalysis->statusLabel() }}（第{{ $video->latestAnalysis->version }}版）

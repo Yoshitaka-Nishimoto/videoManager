@@ -1,11 +1,13 @@
 <?php
 
 use App\Actions\Videos\AnalysisAlreadyRunningException;
+use App\Actions\Videos\RefreshVideoStatistics;
 use App\Actions\Videos\RequestVideoAnalysis;
 use App\Models\KnowledgeEdge;
 use App\Models\KnowledgeNode;
 use App\Models\Video;
 use App\Models\VideoAnalysis;
+use App\Services\YouTube\YouTubeException;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -24,6 +26,15 @@ new #[Title('動画詳細')] class extends Component
         }
 
         unset($this->analyses);
+    }
+
+    public function refreshStatistics(RefreshVideoStatistics $refresh): void
+    {
+        try {
+            $refresh->handle($this->video);
+        } catch (YouTubeException $e) {
+            $this->addError('statistics', $e->getMessage());
+        }
     }
 
     /**
@@ -95,6 +106,32 @@ new #[Title('動画詳細')] class extends Component
                 <dd>{{ $video->published_at?->format('Y-m-d') ?? '—' }}</dd>
                 <dt class="text-[#706f6c] dark:text-[#A1A09A]">YouTube</dt>
                 <dd><a href="{{ $video->url }}" target="_blank" rel="noopener" class="break-all text-blue-700 hover:underline dark:text-blue-400">{{ $video->url }}</a></dd>
+                @if ($video->youtube_id)
+                    <dt class="text-[#706f6c] dark:text-[#A1A09A]">統計</dt>
+                    <dd class="space-y-1">
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+                            <span title="{{ $video->view_count !== null ? number_format($video->view_count) : '' }}">再生 {{ Video::formatCount($video->view_count) }} 回</span>
+                            <span title="{{ $video->like_count !== null ? number_format($video->like_count) : '非公開' }}">高評価 {{ Video::formatCount($video->like_count) }}</span>
+                            <span title="{{ $video->comment_count !== null ? number_format($video->comment_count) : '無効' }}">コメント {{ Video::formatCount($video->comment_count) }}</span>
+                            <button
+                                type="button"
+                                wire:click="refreshStatistics"
+                                wire:loading.attr="disabled"
+                                wire:target="refreshStatistics"
+                                class="rounded-sm border border-[#19140035] px-2 py-0.5 text-xs hover:border-[#1915014a] disabled:opacity-50 dark:border-[#3E3E3A] dark:hover:border-[#62605b]"
+                            >
+                                <span wire:loading.remove wire:target="refreshStatistics">統計を更新</span>
+                                <span wire:loading wire:target="refreshStatistics">取得中…</span>
+                            </button>
+                        </div>
+                        <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">
+                            {{ $video->statistics_fetched_at ? $video->statistics_fetched_at->format('Y-m-d H:i').' 時点' : 'まだ取得していません' }}
+                        </p>
+                        @error('statistics')
+                            <p class="text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </dd>
+                @endif
             </dl>
         </div>
     </section>

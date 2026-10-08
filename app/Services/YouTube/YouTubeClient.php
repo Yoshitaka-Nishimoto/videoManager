@@ -34,7 +34,8 @@ class YouTubeClient
     {
         $response = Http::timeout(10)->get(self::VIDEOS_ENDPOINT, [
             'id' => $youtubeId,
-            'part' => 'snippet,contentDetails',
+            // statistics を加えても 1 回の呼び出しの消費（1 ユニット）は変わらない。
+            'part' => 'snippet,contentDetails,statistics',
             'key' => $this->apiKey,
         ]);
 
@@ -59,7 +60,17 @@ class YouTubeClient
             durationSeconds: $this->durationSeconds($item['contentDetails']['duration'] ?? null),
             publishedAt: isset($snippet['publishedAt']) ? CarbonImmutable::parse($snippet['publishedAt']) : null,
             thumbnailUrl: ($thumbnails['high'] ?? $thumbnails['medium'] ?? $thumbnails['default'] ?? [])['url'] ?? null,
+            // 数は文字列で返る。投稿者が非公開にしている高評価や、無効にしているコメントは項目ごと返らない。
+            viewCount: $this->count($item['statistics']['viewCount'] ?? null),
+            likeCount: $this->count($item['statistics']['likeCount'] ?? null),
+            commentCount: $this->count($item['statistics']['commentCount'] ?? null),
+            statisticsFetchedAt: isset($item['statistics']) ? CarbonImmutable::now() : null,
         );
+    }
+
+    private function count(mixed $value): ?int
+    {
+        return is_numeric($value) ? (int) $value : null;
     }
 
     private function fetchFromOEmbed(string $youtubeId): YouTubeVideoDetails

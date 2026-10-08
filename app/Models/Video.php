@@ -23,6 +23,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'duration_seconds',
     'published_at',
     'thumbnail_url',
+    'view_count',
+    'like_count',
+    'comment_count',
+    'statistics_fetched_at',
     'registered_by',
 ])]
 class Video extends Model
@@ -46,7 +50,29 @@ class Video extends Model
         return [
             'duration_seconds' => 'integer',
             'published_at' => 'datetime',
+            'view_count' => 'integer',
+            'like_count' => 'integer',
+            'comment_count' => 'integer',
+            'statistics_fetched_at' => 'datetime',
         ];
+    }
+
+    /**
+     * 再生回数などの数を「1.2万」「345万」「1.1億」の形で表す。取得できていなければ「—」。
+     */
+    public static function formatCount(?int $count): string
+    {
+        return match (true) {
+            $count === null => '—',
+            $count >= 100_000_000 => self::trimDecimal($count / 100_000_000).'億',
+            $count >= 10_000 => self::trimDecimal($count / 10_000).'万',
+            default => number_format($count),
+        };
+    }
+
+    private static function trimDecimal(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, $value < 10 ? 1 : 0, '.', ''), '0'), '.');
     }
 
     /**
