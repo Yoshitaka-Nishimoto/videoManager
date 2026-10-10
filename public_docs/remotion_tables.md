@@ -118,6 +118,15 @@ queued → running（stage：bundling → rendering → encoding → muxing）�
 | fps | 30 で固定（推奨）か、制作ごとに選ぶか |
 | ライセンス | 個人と従業員 3 人以下の会社は無料、それ以上は有料のライセンスが必要（公式のライセンスのページで最新の条件を確認する） |
 
+## 決まったこと
+
+| 項目 | 決定 |
+|---|---|
+| Remotion のプロジェクトの置き場所 | このリポジトリの `remotion/` |
+| 書き出しを動かす場所 | Sail のコンテナ内（Chrome の動作に必要なライブラリはコンテナに入っていた）。キューの接続 `remotion` の専用のワーカーで動かす |
+| fps | 30 で固定（`config/remotion.php`） |
+| Remotion Studio | **Studio では書き出さない。Studio での操作はすべて破棄する。** 制作した動画の確認は読み取り専用の Studio（`npm run bundle` で作り、Laravel が `/remotion-studio` で配信。書き出し・書き戻しができない）。部品の開発は普通の Studio（ポート 3000、この PC からだけ）をルールに従って使う。詳しくは `.claude/skills/remotion-project/SKILL.md` |
+
 ## 出典
 
 - [Remotion ドキュメント](https://www.remotion.dev/docs/)

@@ -5,6 +5,7 @@
   "scripts": {
     "studio": "remotion studio src/index.ts",
     "render": "node scripts/render.mjs",
+    "bundle": "remotion bundle src/index.ts --out-dir=build --public-path=/remotion-studio/ --disable-git-source --disable-ask-ai",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

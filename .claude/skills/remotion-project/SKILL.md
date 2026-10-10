@@ -13,7 +13,7 @@ Remotion の一般的な書き方は `remotion-best-practices` に従う。た�
 
 | 公式の skill の指示 | このプロジェクト |
 |---|---|
-| 作業の前に Studio を起動してブラウザで開く | **起動しない。** Remotion は Sail のコンテナ内にあり、Studio のポートを公開していない。確認は静止画の書き出し（下記）で行い、画像を Read で見る |
+| 作業の前に Studio を起動してブラウザで開く | 用途で分ける（下記「Studio の使い分け」）。Claude が自分で確かめるときは、静止画を書き出して画像を Read で見る |
 | 書き出しは `npx remotion render` | Laravel のジョブから `remotion/scripts/render.mjs` で書き出し、`production_renders` に記録する。CLI での書き出しは使わない |
 | ナレーションは ElevenLabs を勧め、API キーを聞く | **勧めない。** ナレーションは Runway で各場面の `narration` から作る設計（`public_docs/video_capabilities.md`） |
 | `npx create-video` で新しいプロジェクトを作る | 作らない。プロジェクトは `remotion/` の 1 つだけ |
@@ -36,7 +36,29 @@ docker compose exec -T -u sail laravel.test bash -c 'cd remotion && <コマン�
 | 動画で確認 | `node scripts/render.mjs fixtures/preview-job.json` → `out/preview.mp4` |
 
 - `package.json` のバージョンは固定（`^` を付けない）。`@remotion/*` はすべて同じバージョンにする。
-- `out/` と `node_modules/` は git の管理外。
+- `out/`、`build/`、`node_modules/` は git の管理外。
+
+## Studio の使い分け
+
+**Studio では書き出さない。Studio での操作はすべて破棄する。** 内容は DB（production_scenes）が正で、確認済みの版は直さず、書き出しはすべて Laravel から行い production_renders に記録する。
+
+| 用途 | 使う Studio | 開き方 |
+|---|---|---|
+| **制作した動画の確認** | 読み取り専用の Studio（`npm run bundle` で作る静的な Studio。Laravel が `/remotion-studio` でログインした人に配信） | 制作の画面の「Studio で確認」。URL は `/remotion-studio/plans/{制作案ID}/{場面キー（省略可）}/?/Production`（`?/Scene` で場面だけ） |
+| **部品の開発** | 普通の Studio（`npm run studio -- --port=3000 --no-open`、コンテナのポート 3000 を 127.0.0.1 にだけ公開） | http://localhost:3000 。見本の入力（`fixtures/sample.json`）で表示する |
+
+読み取り専用の Studio：
+- 書き出しもコードへの書き戻しもできない（Remotion がサーバーなしの読み取り専用で動かす）。入力を変えてもページを閉じれば消える。
+- 「Render in browser」（ブラウザ内での書き出し）は残っているため、Laravel が「Render」を含むボタンとメニューを隠すスクリプトを埋め込む（`RemotionStudioController`）。
+- 制作案の入力は Laravel がページに埋め込み、`src/studio-input.ts` → `Root.tsx` の calculateMetadata が使う。
+- 部品のコードを変えたら `npm run bundle` で作り直す（作り直すまで古い部品のまま）。
+
+普通の Studio（部品の開発）のルール：
+1. **書き出しボタン（Render）を押さない。** 確認用の書き出しが要るときは `node scripts/render.mjs fixtures/...` を使う。
+2. **入力の編集（Props editor）を保存しない。** 書き戻されないよう、`<Composition>` の `defaultProps` は直接書かず変数にしておく（Root.tsx）。
+3. **画面上の見た目の編集（コードへの書き戻し）を使わない。** 見た目は部品のコードで直す。
+4. 終わったら `git status remotion` で、意図しない変更（Studio による書き戻し）がないことを確かめる。あれば `git restore` で戻す。
+5. 部品を直したらコミットしてから Laravel で書き出す（未コミットだと code_version が `-dirty` になる）。
 
 ## 構成
 

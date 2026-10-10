@@ -87,6 +87,20 @@ docker compose exec -T -u sail laravel.test bash -c 'cd remotion && npm install'
 `./vendor/bin/sail artisan dev` で起動した場合は、両方のワーカーが自動で起動する。
 書き出しの打ち切りは `.env` の `REMOTION_TIMEOUT`（秒、既定 1800）。変えたときは `--timeout` を「REMOTION_TIMEOUT＋100」程度にする。
 
+### Remotion Studio
+Studio では書き出さず、操作はすべて破棄する（詳しくは `.claude/skills/remotion-project/SKILL.md`）。
+
+```bash
+# 制作した動画の確認：読み取り専用の Studio を作る（部品のコードを変えたら作り直す）。
+# 作った後は、制作の画面の「Studio で確認」から開く（/remotion-studio、ログインが必要）。
+docker compose exec -T -u sail laravel.test bash -c 'cd remotion && npm run bundle'
+
+# 部品の開発：普通の Studio を起動し、http://localhost:3000 を開く（書き出し・入力の保存はしない）。
+docker compose exec -u sail laravel.test bash -c 'cd remotion && npm run studio -- --port=3000 --no-open'
+```
+
+ポート 3000 は `compose.yaml` で 127.0.0.1 にだけ公開している。追加した後は `./vendor/bin/sail up -d` でコンテナを作り直す。
+
 6.　Runway api による、高度な動画生成
 
 7.　動画設計に必要なもの

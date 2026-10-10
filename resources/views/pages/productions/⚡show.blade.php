@@ -152,7 +152,14 @@ new #[Title('制作詳細')] class extends Component
                         @endforeach
                     </select>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex flex-wrap gap-2">
+                    {{-- 読み取り専用の Studio で、書き出さずに動きを確認する（操作は残らない）。 --}}
+                    <a
+                        href="{{ route('remotion-studio', ['path' => "plans/{$plan->id}/"]) }}?/Production"
+                        target="_blank"
+                        rel="noopener"
+                        class="rounded-sm border border-[#19140035] px-4 py-2 text-sm hover:border-[#1915014a] dark:border-[#3E3E3A] dark:hover:border-[#62605b]"
+                    >Studio で確認</a>
                     <button type="button" wire:click="renderVideo('preview')" wire:loading.attr="disabled" class="{{ $button }}">確認用の動画を書き出す</button>
                     <button
                         type="button"

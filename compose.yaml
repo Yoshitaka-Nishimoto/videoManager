@@ -11,6 +11,8 @@ services:
         ports:
             - '${APP_PORT:-80}:80'
             - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+            # Remotion Studio（部品の開発用）。この PC からだけ開けるよう 127.0.0.1 に限る。
+            - '127.0.0.1:${REMOTION_STUDIO_PORT:-3000}:3000'
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1

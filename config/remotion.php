@@ -22,6 +22,9 @@ return [
     // Node の実行ファイル。
     'node_binary' => env('REMOTION_NODE_BINARY', 'node'),
 
+    // 読み取り専用の Studio（npm run bundle の出力先、プロジェクトからの相対パス）。/remotion-studio で配信する。
+    'studio_build_directory' => 'build',
+
     // 書き出したファイルを保存するディスクとディレクトリ。
     'disk' => env('REMOTION_DISK', 'local'),
     'output_directory' => 'productions/renders',
