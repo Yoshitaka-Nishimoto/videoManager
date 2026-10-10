@@ -40,6 +40,11 @@ return [
         'gemini_fallback_models' => array_values(array_filter(array_map('trim', explode(',', (string) env('GEMINI_ANALYSIS_FALLBACK_MODELS', 'gemini-3.5-flash,gemini-2.5-flash'))))),
     ],
 
+    // 台本の候補を作る実装（dummy / gemini）。指定がなければ動画分析と同じ。Gemini のモデルは上の設定を使う。
+    'script_writer' => [
+        'driver' => env('SCRIPT_WRITER', env('VIDEO_ANALYZER', 'dummy')),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

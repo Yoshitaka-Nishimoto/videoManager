@@ -2,8 +2,6 @@
 
 namespace App\Services\Productions;
 
-use Illuminate\Support\Str;
-
 /**
  * 制作を作るときの選択肢と、場面の部品の構成（型）から最初の場面を組み立てるひな形。
  *
@@ -138,8 +136,8 @@ final class ProductionTemplate
                 'duration_seconds' => $durations[$index],
                 'content' => match ($type) {
                     'remotion.title' => ['title' => $index === $lastIndex && $index > 0
-                        ? ['heading' => Str::limit($decisionTitle, 30, ''), 'subheading' => null, 'layout' => 'lower_third']
-                        : ['heading' => Str::limit($title, 30, ''), 'subheading' => null, 'layout' => 'center']],
+                        ? ['heading' => mb_substr($decisionTitle, 0, 30), 'subheading' => null, 'layout' => 'lower_third']
+                        : ['heading' => mb_substr($title, 0, 30), 'subheading' => null, 'layout' => 'center']],
                     'remotion.text' => ['text' => ['heading' => $sceneTitle, 'items' => $points, 'reveal' => 'one_by_one']],
                     'remotion.diagram' => ['diagram' => self::diagram($points)],
                     'remotion.chart' => ['chart' => [
@@ -166,7 +164,7 @@ final class ProductionTemplate
             ->map(fn (string $sentence) => trim($sentence))
             ->filter()
             ->take(3)
-            ->map(fn (string $sentence) => Str::limit($sentence, 40, ''))
+            ->map(fn (string $sentence) => mb_substr($sentence, 0, 40))
             ->values()
             ->all();
 
@@ -186,7 +184,7 @@ final class ProductionTemplate
             $points[] = '（つながる要素）';
         }
 
-        $nodes = array_map(fn (string $point, int $i) => ['id' => chr(97 + $i), 'label' => Str::limit($point, 15, '')], $points, array_keys($points));
+        $nodes = array_map(fn (string $point, int $i) => ['id' => chr(97 + $i), 'label' => mb_substr($point, 0, 15)], $points, array_keys($points));
         $ids = array_column($nodes, 'id');
         $edges = array_map(fn (string $from, string $to) => ['from' => $from, 'to' => $to, 'label' => null], array_slice($ids, 0, -1), array_slice($ids, 1));
 

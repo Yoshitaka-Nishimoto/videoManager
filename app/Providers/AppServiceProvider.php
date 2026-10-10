@@ -2,9 +2,13 @@
 
 namespace App\Providers;
 
+use App\Services\Ai\GeminiModels;
 use App\Services\Analysis\DummyVideoAnalyzer;
 use App\Services\Analysis\GeminiVideoAnalyzer;
 use App\Services\Analysis\VideoAnalyzer;
+use App\Services\Script\DummyScriptWriter;
+use App\Services\Script\GeminiScriptWriter;
+use App\Services\Script\ScriptWriter;
 use App\Services\YouTube\YouTubeClient;
 use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\ServiceProvider;
@@ -25,6 +29,11 @@ class AppServiceProvider extends ServiceProvider
                 config('services.video_analyzer.gemini_fallback_models'),
             ),
             default => $app->make(DummyVideoAnalyzer::class),
+        });
+
+        $this->app->bind(ScriptWriter::class, fn ($app) => match (config('services.script_writer.driver')) {
+            'gemini' => new GeminiScriptWriter(GeminiModels::fromConfig()),
+            default => $app->make(DummyScriptWriter::class),
         });
     }
 

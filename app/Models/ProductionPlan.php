@@ -26,6 +26,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'model',
     'prompt',
     'ai_response',
+    'script_status',
+    'script_candidates',
+    'script_selected',
+    'script_error',
+    'script_requested_at',
+    'script_started_at',
     'estimated_cost',
     'error_message',
     'confirmed_by',
@@ -46,6 +52,12 @@ class ProductionPlan extends Model
 
     public const STATUS_DEPRECATED = 'deprecated';
 
+    public const SCRIPT_GENERATING = 'generating';
+
+    public const SCRIPT_READY = 'ready';
+
+    public const SCRIPT_FAILED = 'failed';
+
     /**
      * Get the attributes that should be cast.
      *
@@ -58,6 +70,10 @@ class ProductionPlan extends Model
             'settings' => 'json:unicode',
             'mock_asset_ids' => 'array',
             'ai_response' => 'json:unicode',
+            'script_candidates' => 'json:unicode',
+            'script_selected' => 'integer',
+            'script_requested_at' => 'datetime',
+            'script_started_at' => 'datetime',
             'estimated_cost' => 'decimal:4',
             'confirmed_at' => 'datetime',
         ];
@@ -81,6 +97,36 @@ class ProductionPlan extends Model
     public function isEditable(): bool
     {
         return $this->status === self::STATUS_CANDIDATE;
+    }
+
+    /** 順番待ちがこれより長ければ、キューのワーカーが動いていない可能性を知らせる（秒）。 */
+    public const SCRIPT_WAITING_WARN_SECONDS = 20;
+
+    /** 作成中がこれより長ければ、応答がないと知らせる（秒。ジョブの打ち切り 300 秒より少し長く）。 */
+    public const SCRIPT_RUNNING_WARN_SECONDS = 330;
+
+    /**
+     * 台本の候補作りの進み具合。作成中でなければ null。
+     *   waiting … 依頼したが、まだ始まっていない（キューで順番待ち）
+     *   running … Gemini が作成中
+     *
+     * @return array{stage: 'waiting'|'running', seconds: int, late: bool}|null
+     */
+    public function scriptProgress(): ?array
+    {
+        if ($this->script_status !== self::SCRIPT_GENERATING) {
+            return null;
+        }
+
+        $stage = $this->script_started_at === null ? 'waiting' : 'running';
+        $since = $this->script_started_at ?? $this->script_requested_at ?? $this->updated_at;
+        $seconds = (int) max(0, $since?->diffInSeconds(now()) ?? 0);
+
+        return [
+            'stage' => $stage,
+            'seconds' => $seconds,
+            'late' => $seconds > ($stage === 'waiting' ? self::SCRIPT_WAITING_WARN_SECONDS : self::SCRIPT_RUNNING_WARN_SECONDS),
+        ];
     }
 
     /**

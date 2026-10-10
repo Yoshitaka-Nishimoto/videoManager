@@ -5,14 +5,12 @@ namespace App\Services\Analysis;
 use App\Ai\Agents\VideoAnalyst;
 use App\Models\KnowledgeNode;
 use App\Models\Video;
-use Illuminate\Support\Facades\Log;
+use App\Services\Ai\GeminiModels;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Laravel\Ai\Enums\Lab;
-use Laravel\Ai\Exceptions\FailoverableException;
 use Laravel\Ai\Files\Video as VideoFile;
 use Laravel\Ai\Responses\AgentResponse;
-use LogicException;
 
 /**
  * YouTube の URL を Gemini に動画として渡し、内容を分析する。
@@ -43,47 +41,21 @@ class GeminiVideoAnalyzer implements VideoAnalyzer
         $prompt = $this->prompt($video);
         $reportProgress(15);
 
-        [$response, $model] = $this->promptWithFallback($prompt, $video);
+        /** @var AgentResponse $response */
+        [$response, $model] = (new GeminiModels($this->model, $this->fallbackModels))->attempt(
+            fn (?string $model) => (new VideoAnalyst)->prompt(
+                $prompt,
+                attachments: [VideoFile::fromUrl('https://www.youtube.com/watch?v='.$video->youtube_id)],
+                provider: Lab::Gemini,
+                model: $model,
+            ),
+            purpose: '分析',
+            context: ['video_id' => $video->id],
+        );
 
         $reportProgress(90);
 
         return $this->toResult($response->toArray(), $video, $response->meta->model ?? $model ?? 'gemini', $prompt);
-    }
-
-    /**
-     * 混雑・回数制限で失敗したら次のモデルで試す。すべて失敗したら最後の例外を投げる（ジョブ側で時間をおいて再試行する）。
-     *
-     * @return array{AgentResponse, ?string}
-     */
-    private function promptWithFallback(string $prompt, Video $video): array
-    {
-        $models = collect([$this->model, ...$this->fallbackModels])->unique()->values();
-
-        foreach ($models as $index => $model) {
-            try {
-                $response = (new VideoAnalyst)->prompt(
-                    $prompt,
-                    attachments: [VideoFile::fromUrl('https://www.youtube.com/watch?v='.$video->youtube_id)],
-                    provider: Lab::Gemini,
-                    model: $model,
-                );
-
-                return [$response, $model];
-            } catch (FailoverableException $e) {
-                if ($index === $models->count() - 1) {
-                    throw $e;
-                }
-
-                Log::warning('Gemini のモデルが応答しないため、次のモデルで分析します。', [
-                    'video_id' => $video->id,
-                    'model' => $model ?? 'SDK の既定',
-                    'next_model' => $models[$index + 1],
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        throw new LogicException('分析に使うモデルがありません。');
     }
 
     private function prompt(Video $video): string

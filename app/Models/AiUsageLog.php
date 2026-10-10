@@ -29,6 +29,9 @@ class AiUsageLog extends Model
 
     public const FEATURE_ANALYSIS = 'analysis';
 
+    /** 制作案の台本の候補作り（usable は制作案）。 */
+    public const FEATURE_SCRIPT = 'script';
+
     /**
      * Get the attributes that should be cast.
      *

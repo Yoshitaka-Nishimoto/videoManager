@@ -153,6 +153,8 @@ new #[Title('AI 使用量')] class extends Component
                 {{ number_format($log->input_tokens) }} / {{ number_format($log->output_tokens) }} tokens
                 @if ($log->usable instanceof \App\Models\VideoAnalysis)
                     · <a href="{{ route('videos.show', $log->usable->video_id) }}" wire:navigate class="underline">分析 第{{ $log->usable->version }}版</a>
+                @elseif ($log->usable instanceof \App\Models\ProductionPlan)
+                    · <a href="{{ route('productions.show', ['production' => $log->usable->video_production_id, 'plan' => $log->usable->id]) }}" wire:navigate class="underline">台本の候補（制作案 第{{ $log->usable->version }}版）</a>
                 @endif
                 @unless ($log->succeeded)
                     · <span class="text-red-600">失敗：{{ $log->error_message }}</span>
