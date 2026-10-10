@@ -385,6 +385,10 @@ new #[Title('知識の詳細')] class extends Component
                 </details>
             @endif
 
+            @if ($node->node_type === KnowledgeNode::TYPE_DECISION && $node->status !== KnowledgeNode::STATUS_DEPRECATED)
+                <a href="{{ route('productions.create', ['decision' => $node->id]) }}" wire:navigate class="{{ $card }} block text-sm font-semibold hover:underline">この設計判断から制作を作る →</a>
+            @endif
+
             @if ($this->canCreateDecision)
                 <details class="{{ $card }}">
                     <summary class="cursor-pointer text-sm font-semibold">この概念から設計判断を作る</summary>

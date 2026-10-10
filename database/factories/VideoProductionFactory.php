@@ -20,6 +20,7 @@ class VideoProductionFactory extends Factory
     {
         return [
             'decision_node_id' => KnowledgeNode::factory()->decision(),
+            'genre' => 'ai',
             'title' => fake()->realText(20),
             'brief' => fake()->realText(80),
             'ratio' => '1280:720',

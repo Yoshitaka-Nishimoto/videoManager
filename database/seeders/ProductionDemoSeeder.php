@@ -47,6 +47,7 @@ class ProductionDemoSeeder extends Seeder
 
             $production = VideoProduction::query()->create([
                 'decision_node_id' => $decision->id,
+                'genre' => 'video_creation',
                 'title' => self::MARK.'入力画像の品質確認の解説',
                 'brief' => '設計判断「生成の前に入力画像の品質を確認する」を、1 分程度の解説動画にする。',
                 'ratio' => '1280:720',

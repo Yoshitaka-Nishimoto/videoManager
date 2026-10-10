@@ -27,15 +27,19 @@ new #[Title('制作')] class extends Component
 ?>
 
 <div class="space-y-6">
-    <h1 class="text-xl font-semibold">制作</h1>
+    <div class="flex items-center justify-between gap-4">
+        <h1 class="text-xl font-semibold">制作</h1>
+        <a href="{{ route('productions.create') }}" wire:navigate class="rounded-sm bg-[#1b1b18] px-4 py-2 text-sm text-white hover:bg-black dark:bg-[#EDEDEC] dark:text-[#1b1b18]">制作を作る</a>
+    </div>
 
     @if ($this->productions->isEmpty())
-        <p class="text-sm text-[#706f6c] dark:text-[#A1A09A]">まだ制作がありません。知識の設計判断から制作を作ると、ここに表示されます。</p>
+        <p class="text-sm text-[#706f6c] dark:text-[#A1A09A]">まだ制作がありません。「制作を作る」から、設計判断をもとに作れます。</p>
     @else
         <table class="w-full text-left text-sm">
             <thead class="border-b border-[#19140035] text-[#706f6c] dark:border-[#3E3E3A] dark:text-[#A1A09A]">
                 <tr>
                     <th class="py-2 pr-4 font-normal">タイトル</th>
+                    <th class="py-2 pr-4 font-normal">ジャンル</th>
                     <th class="py-2 pr-4 font-normal">設計判断</th>
                     <th class="py-2 pr-4 font-normal">比率</th>
                     <th class="py-2 pr-4 font-normal">最新の制作案</th>
@@ -48,6 +52,7 @@ new #[Title('制作')] class extends Component
                         <td class="py-2 pr-4">
                             <a href="{{ route('productions.show', $production) }}" wire:navigate class="font-medium hover:underline">{{ $production->title }}</a>
                         </td>
+                        <td class="py-2 pr-4">{{ $production->genreLabel() }}</td>
                         <td class="py-2 pr-4">{{ $production->decisionNode?->title ?? '—' }}</td>
                         <td class="py-2 pr-4">{{ $production->ratio }}</td>
                         <td class="py-2 pr-4">{{ $production->latestPlan ? "第{$production->latestPlan->version}版（{$production->latestPlan->statusLabel()}）" : '—' }}</td>

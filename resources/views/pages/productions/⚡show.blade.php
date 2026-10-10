@@ -116,9 +116,15 @@ new #[Title('制作詳細')] class extends Component
         <a href="{{ route('productions.index') }}" wire:navigate class="text-sm {{ $muted }} hover:underline">← 制作一覧</a>
     </div>
 
+    @if (session('status'))
+        <p class="rounded-sm bg-green-50 px-4 py-2 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{{ session('status') }}</p>
+    @endif
+
     <section class="space-y-3">
         <h1 class="text-xl font-semibold">{{ $production->title }}</h1>
         <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+            <dt class="{{ $muted }}">ジャンル</dt>
+            <dd>{{ $production->genreLabel() }}</dd>
             <dt class="{{ $muted }}">設計判断</dt>
             <dd>
                 @if ($production->decisionNode)

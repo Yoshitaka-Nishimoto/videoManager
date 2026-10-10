@@ -18,6 +18,7 @@ Route::middleware('auth')->group(function () {
     Route::livewire('knowledge/{node}', 'pages::knowledge.show')->name('knowledge.show');
     Route::livewire('ai-usage', 'pages::ai-usage.index')->name('ai-usage.index');
     Route::livewire('productions', 'pages::productions.index')->name('productions.index');
+    Route::livewire('productions/create', 'pages::productions.create')->name('productions.create');
     Route::livewire('productions/{production}', 'pages::productions.show')->name('productions.show');
     Route::get('production-renders/{render}/file', ProductionRenderFileController::class)->name('production-renders.file');
     Route::get('remotion-studio/{path?}', RemotionStudioController::class)->where('path', '.*')->name('remotion-studio');

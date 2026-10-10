@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  */
 #[Fillable([
     'decision_node_id',
+    'genre',
     'title',
     'brief',
     'ratio',
@@ -35,6 +36,19 @@ class VideoProduction extends Model
 
     /** 選べる画面の比率（Runway の出力の比率に合わせる）。 */
     public const RATIOS = ['1280:720', '720:1280', '960:960'];
+
+    /** 動画のジャンル（キー => 表示名）。制作の作成の最初に選ぶ。 */
+    public const GENRES = [
+        'ai' => 'AI関連',
+        'video_creation' => '動画作成',
+        'healthy_longevity' => '健康寿命',
+        'other' => 'その他',
+    ];
+
+    public function genreLabel(): string
+    {
+        return self::GENRES[$this->genre ?? 'other'] ?? (string) $this->genre;
+    }
 
     /**
      * Get the attributes that should be cast.
