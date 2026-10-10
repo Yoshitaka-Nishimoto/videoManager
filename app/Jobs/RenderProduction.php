@@ -2,11 +2,13 @@
 
 namespace App\Jobs;
 
+use App\Actions\Productions\CancelProductionRender;
 use App\Models\ProductionRender;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -23,6 +25,9 @@ class RenderProduction implements ShouldQueue
     public int $tries = 1;
 
     public int $timeout;
+
+    /** 書き出し中に、取り消されていないかを確かめる間隔（秒）。 */
+    private const CANCEL_CHECK_SECONDS = 3;
 
     /** log 列に残す、Remotion の出力の末尾の長さ（文字数）。 */
     private const LOG_LIMIT = 8000;
@@ -47,7 +52,25 @@ class RenderProduction implements ShouldQueue
 
     public function handle(): void
     {
-        $render = $this->render;
+        $render = $this->render->refresh();
+
+        // 取り消された書き出しは何もしない。前回の実行が途中で止まったまま（WSL が落ちたなど）のものは、
+        // もう一度動かすと同じことが起きるおそれがあるため、失敗として記録して終わる。
+        if ($render->status === ProductionRender::STATUS_RUNNING) {
+            $render->update([
+                'status' => ProductionRender::STATUS_FAILED,
+                'stage' => null,
+                'error_message' => '前回の書き出しが途中で止まりました（WSL が落ちた可能性があります）。必要なら書き出し直してください。',
+                'completed_at' => now(),
+            ]);
+
+            return;
+        }
+
+        if ($render->status !== ProductionRender::STATUS_QUEUED) {
+            return;
+        }
+
         $disk = Storage::disk(config('remotion.disk'));
         $storagePath = config('remotion.output_directory').'/'.$render->id.'-'.$render->kind.'.'.$this->extension();
         $disk->makeDirectory(dirname($storagePath));
@@ -63,6 +86,7 @@ class RenderProduction implements ShouldQueue
             'scale' => (float) $render->scale,
             'crf' => $render->crf,
             'frame' => $render->frame,
+            'concurrency' => (int) config('remotion.concurrency'),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
 
         $render->update([
@@ -73,10 +97,32 @@ class RenderProduction implements ShouldQueue
         ]);
 
         try {
-            $result = Process::path(config('remotion.project_path'))
+            $process = Process::path(config('remotion.project_path'))
                 ->timeout((int) config('remotion.timeout'))
-                ->start([config('remotion.node_binary'), config('remotion.render_script'), $jobPath])
-                ->wait(fn (string $type, string $output) => $this->read($type, $output));
+                ->start(
+                    [config('remotion.node_binary'), config('remotion.render_script'), $jobPath],
+                    fn (string $type, string $output) => $this->read($type, $output),
+                );
+
+            // 出力を読みながら、取り消されていないかを数秒ごとに確かめる。取り消されたら書き出しを止める。
+            $checkedAt = 0.0;
+            while ($process->running()) {
+                $process->ensureNotTimedOut();
+
+                if (microtime(true) - $checkedAt >= self::CANCEL_CHECK_SECONDS) {
+                    $checkedAt = microtime(true);
+
+                    if ($this->wasCancelled()) {
+                        $process->stop();
+
+                        throw new RuntimeException(CancelProductionRender::MESSAGE);
+                    }
+                }
+
+                Sleep::for(500)->milliseconds();
+            }
+
+            $result = $process->wait();
 
             $this->read('out', "\n"); // 改行で終わらなかった最後の行を処理する。
 
@@ -100,12 +146,25 @@ class RenderProduction implements ShouldQueue
      */
     public function failed(?Throwable $exception): void
     {
+        // 取り消し済み・記録済みなら、その内容を残す。
+        if (! $this->render->refresh()->isInProgress()) {
+            return;
+        }
+
         $this->render->update([
             'status' => ProductionRender::STATUS_FAILED,
             'stage' => null,
             'error_message' => Str::limit($exception?->getMessage() ?? '書き出しに失敗しました。', 2000),
             'completed_at' => now(),
         ]);
+    }
+
+    /**
+     * 画面から取り消されたか（実行中ではなくなったか）。
+     */
+    private function wasCancelled(): bool
+    {
+        return ProductionRender::query()->whereKey($this->render->id)->value('status') !== ProductionRender::STATUS_RUNNING;
     }
 
     /**

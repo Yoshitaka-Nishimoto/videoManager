@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Productions\CancelProductionRender;
 use App\Actions\Productions\RenderNotAllowedException;
 use App\Actions\Productions\RequestProductionRender;
 use App\Jobs\RenderProduction;
@@ -13,6 +14,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
+use Livewire\Livewire;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -217,5 +220,63 @@ class ProductionRenderTest extends TestCase
     private function scene(array $attributes): ProductionScene
     {
         return ProductionScene::factory()->create(['production_plan_id' => $this->plan->id, ...$attributes]);
+    }
+
+    public function test_a_queued_render_can_be_cancelled_and_its_job_does_nothing(): void
+    {
+        $render = $this->request(ProductionRender::KIND_PREVIEW);
+        Process::fake();
+
+        Livewire::actingAs($this->user)->test('pages::productions.show', ['production' => $this->plan->production])
+            ->call('cancelRender', $render->id)
+            ->assertSee('取り消しました。');
+
+        (new RenderProduction($render))->handle();
+
+        $this->assertSame([ProductionRender::STATUS_FAILED, '取り消しました。'], [$render->refresh()->status, $render->error_message]);
+        Process::assertDidntRun(fn ($process) => str_contains(implode(' ', (array) $process->command), 'render.mjs'));
+    }
+
+    public function test_a_running_render_is_stopped_when_cancelled(): void
+    {
+        Storage::fake('local');
+        Sleep::fake();
+        $render = $this->request(ProductionRender::KIND_PREVIEW);
+        Process::fake([
+            '*render.mjs*' => Process::describe()
+                ->output('{"type":"stage","stage":"bundling"}')
+                ->iterations(5)
+                ->exitCode(0),
+        ]);
+        // 書き出しが始まった直後に、画面から取り消された状態にする。
+        ProductionRender::updated(function (ProductionRender $model) {
+            if ($model->wasChanged('stage') && $model->stage === ProductionRender::STAGE_BUNDLING && $model->status === ProductionRender::STATUS_RUNNING) {
+                app(CancelProductionRender::class)->handle($model);
+            }
+        });
+        $job = new RenderProduction($render);
+
+        try {
+            $job->handle();
+            $this->fail('例外が投げられませんでした。');
+        } catch (RuntimeException $e) {
+            $this->assertSame('取り消しました。', $e->getMessage());
+            $job->failed($e);
+        }
+
+        $this->assertSame([ProductionRender::STATUS_FAILED, '取り消しました。'], [$render->refresh()->status, $render->error_message]);
+    }
+
+    public function test_a_render_left_running_by_a_crash_is_not_run_again(): void
+    {
+        $render = $this->request(ProductionRender::KIND_STILL, $this->plan->videoScenes()->first());
+        $render->update(['status' => ProductionRender::STATUS_RUNNING, 'stage' => ProductionRender::STAGE_BUNDLING]);
+        Process::fake();
+
+        (new RenderProduction($render))->handle();
+
+        $this->assertSame(ProductionRender::STATUS_FAILED, $render->refresh()->status);
+        $this->assertStringContainsString('途中で止まりました', $render->error_message);
+        Process::assertDidntRun(fn ($process) => str_contains(implode(' ', (array) $process->command), 'render.mjs'));
     }
 }

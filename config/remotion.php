@@ -63,4 +63,8 @@ return [
     // 書き出しが終わらないときに打ち切るまでの秒数。
     'timeout' => (int) env('REMOTION_TIMEOUT', 1800),
 
+    // 動画を書き出すときに同時に描くフレーム数。CPU の全コアに負荷をかけると、この PC では
+    // WSL が落ちることがあったため、既定は 1（遅くなるが安全）。
+    'concurrency' => (int) env('REMOTION_CONCURRENCY', 1),
+
 ];
