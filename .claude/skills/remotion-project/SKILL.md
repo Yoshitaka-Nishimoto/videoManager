@@ -44,14 +44,16 @@ docker compose exec -T -u sail laravel.test bash -c 'cd remotion && <コマン�
 
 | 用途 | 使う Studio | 開き方 |
 |---|---|---|
-| **制作した動画の確認** | 読み取り専用の Studio（`npm run bundle` で作る静的な Studio。Laravel が `/remotion-studio` でログインした人に配信） | 制作の画面の「Studio で確認」。URL は `/remotion-studio/plans/{制作案ID}/{場面キー（省略可）}/?/Production`（`?/Scene` で場面だけ） |
-| **部品の開発** | 普通の Studio（`npm run studio -- --port=3000 --no-open`、コンテナのポート 3000 を 127.0.0.1 にだけ公開） | http://localhost:3000 。見本の入力（`fixtures/sample.json`）で表示する |
+| **制作した動画の確認** | 読み取り専用の Studio（`bin/studio bundle` で作る静的な Studio。Laravel が `/remotion-studio` でログインした人に配信） | 制作の画面の「Studio で確認」。URL は `/remotion-studio/plans/{制作案ID}/{場面キー（省略可）}/?/Production`（`?/Scene` で場面だけ） |
+| **部品の開発** | 普通の Studio（`bin/studio` で起動、`bin/studio stop` で停止。コンテナのポート 3000 を 127.0.0.1 にだけ公開） | http://localhost:3000 。見本の入力（`fixtures/sample.json`）で表示する |
+
+Claude は Studio をバックグラウンドで起動しない（人がターミナルで `bin/studio` を起動する）。`pkill -f` を `bash -c` の中で使うと自分自身も止めるため、停止は `bin/studio stop` を使う。
 
 読み取り専用の Studio：
 - 書き出しもコードへの書き戻しもできない（Remotion がサーバーなしの読み取り専用で動かす）。入力を変えてもページを閉じれば消える。
 - 「Render in browser」（ブラウザ内での書き出し）は残っているため、Laravel が「Render」を含むボタンとメニューを隠すスクリプトを埋め込む（`RemotionStudioController`）。
 - 制作案の入力は Laravel がページに埋め込み、`src/studio-input.ts` → `Root.tsx` の calculateMetadata が使う。
-- 部品のコードを変えたら `npm run bundle` で作り直す（作り直すまで古い部品のまま）。
+- 部品のコードを変えたら `bin/studio bundle` で作り直す（作り直すまで古い部品のまま）。
 
 普通の Studio（部品の開発）のルール：
 1. **書き出しボタン（Render）を押さない。** 確認用の書き出しが要るときは `node scripts/render.mjs fixtures/...` を使う。

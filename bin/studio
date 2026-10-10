@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Remotion Studio の短縮コマンド（WSL のプロジェクトのルートで実行する）。
+#
+#   bin/studio          部品の開発用の Studio を起動する（http://localhost:3000、Ctrl+C で止まる）
+#   bin/studio stop     起動中の Studio を止める
+#   bin/studio status   Studio が動いているかを表示する
+#   bin/studio bundle   確認用の読み取り専用の Studio を作り直す（制作の画面の「Studio で確認」で開く）
+#
+# Studio では書き出さず、操作はすべて破棄する。ルールは .claude/skills/remotion-project/SKILL.md。
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+# compose.yaml が参照する値。未設定だと docker compose が警告を出す。
+export WWWUSER="${WWWUSER:-$(id -u)}"
+export WWWGROUP="${WWWGROUP:-$(id -g)}"
+
+port="${REMOTION_STUDIO_PORT:-3000}"
+tty_flag=()
+[ -t 0 ] || tty_flag=(-T)
+
+in_remotion() {
+    docker compose exec "${tty_flag[@]}" -u sail laravel.test bash -c "cd remotion && $1"
+}
+
+case "${1:-start}" in
+    start)
+        echo "Remotion Studio を起動します：http://localhost:${port}（Ctrl+C で止まる）"
+        echo "書き出し（Render）を押さない・入力を保存しない・終わったら git status remotion を確認する。"
+        in_remotion "npm run studio -- --port=${port} --no-open"
+        ;;
+    stop)
+        # bash -c を挟むと、検索の文字列を含む自分自身も止めてしまうため、pkill を直接実行する。
+        docker compose exec -T laravel.test pkill -f 'remotion studio src' && echo 'Studio を止めました。' || echo '動いている Studio はありません。'
+        ;;
+    status)
+        if curl -s -o /dev/null --max-time 5 "http://127.0.0.1:${port}/"; then
+            echo "Studio は動いています：http://localhost:${port}"
+        else
+            echo 'Studio は動いていません。bin/studio で起動します。'
+        fi
+        ;;
+    bundle)
+        in_remotion 'npm run bundle'
+        echo '読み取り専用の Studio を作り直しました。制作の画面の「Studio で確認」から開きます。'
+        ;;
+    *)
+        sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+        exit 1
+        ;;
+esac

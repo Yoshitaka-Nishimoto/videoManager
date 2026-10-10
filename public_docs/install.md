@@ -90,14 +90,16 @@ docker compose exec -T -u sail laravel.test bash -c 'cd remotion && npm install'
 ### Remotion Studio
 Studio では書き出さず、操作はすべて破棄する（詳しくは `.claude/skills/remotion-project/SKILL.md`）。
 
-```bash
-# 制作した動画の確認：読み取り専用の Studio を作る（部品のコードを変えたら作り直す）。
-# 作った後は、制作の画面の「Studio で確認」から開く（/remotion-studio、ログインが必要）。
-docker compose exec -T -u sail laravel.test bash -c 'cd remotion && npm run bundle'
+短縮コマンド `bin/studio`（WSL のプロジェクトのルートで実行）：
 
-# 部品の開発：普通の Studio を起動し、http://localhost:3000 を開く（書き出し・入力の保存はしない）。
-docker compose exec -u sail laravel.test bash -c 'cd remotion && npm run studio -- --port=3000 --no-open'
+```bash
+bin/studio          # 部品の開発：普通の Studio を起動し、http://localhost:3000 を開く（Ctrl+C で止まる）
+bin/studio stop     # 起動中の Studio を止める
+bin/studio status   # Studio が動いているかを表示する
+bin/studio bundle   # 制作した動画の確認：読み取り専用の Studio を作り直す（部品のコードを変えたら実行）
 ```
+
+読み取り専用の Studio は、制作の画面の「Studio で確認」から開く（/remotion-studio、ログインが必要）。
 
 ポート 3000 は `compose.yaml` で 127.0.0.1 にだけ公開している。追加した後は `./vendor/bin/sail up -d` でコンテナを作り直す。
 
