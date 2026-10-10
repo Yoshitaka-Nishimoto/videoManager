@@ -2,12 +2,14 @@
 
 namespace App\Services\Ai;
 
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 use Laravel\Ai\Exceptions\FailoverableException;
 use LogicException;
 
 /**
- * Gemini を呼ぶときのモデルの順番。混雑・回数制限（503 / 429）で失敗したら、代わりのモデルを順に試す。
+ * Gemini を呼ぶときのモデルの順番。混雑・回数制限（503 / 429）や、提供が終わったモデル（404）で失敗したら、
+ * 代わりのモデルを順に試す。
  * すべて失敗したら最後の例外を投げる（ジョブ側で時間をおいて再試行するか、失敗として記録する）。
  *
  * モデルは config/services.php の video_analyzer.gemini_model / gemini_fallback_models で決める。
@@ -48,12 +50,17 @@ final class GeminiModels
         foreach ($models as $index => $model) {
             try {
                 return [$call($model), $model];
-            } catch (FailoverableException $e) {
+            } catch (FailoverableException|RequestException $e) {
+                // 混雑・回数制限に加え、提供が終わったモデル（404）も次のモデルで試す。それ以外のエラーはそのまま投げる。
+                if ($e instanceof RequestException && $e->response->status() !== 404) {
+                    throw $e;
+                }
+
                 if ($index === $models->count() - 1) {
                     throw $e;
                 }
 
-                Log::warning("Gemini のモデルが応答しないため、次のモデルで{$purpose}を作ります。", [
+                Log::warning("Gemini のモデルが使えないため、次のモデルで{$purpose}を作ります。", [
                     ...$context,
                     'model' => $model ?? 'SDK の既定',
                     'next_model' => $models[$index + 1],
