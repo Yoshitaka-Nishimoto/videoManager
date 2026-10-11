@@ -1,13 +1,17 @@
 <?php
 
 use App\Actions\Productions\ApplyScriptCandidate;
+use App\Actions\Productions\AssetInUseException;
 use App\Actions\Productions\CancelProductionRender;
 use App\Actions\Productions\CancelScriptCandidates;
+use App\Actions\Productions\DeleteProductionAsset;
 use App\Actions\Productions\RenderNotAllowedException;
 use App\Actions\Productions\RequestProductionRender;
 use App\Actions\Productions\RequestScriptCandidates;
 use App\Actions\Productions\SaveSceneScripts;
 use App\Actions\Productions\ScriptNotAllowedException;
+use App\Actions\Productions\UploadProductionAsset;
+use App\Models\ProductionAsset;
 use App\Models\ProductionPlan;
 use App\Models\ProductionRender;
 use App\Models\VideoProduction;
@@ -15,11 +19,24 @@ use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 new #[Title('制作詳細')] class extends Component
 {
+    use WithFileUploads;
+
     public VideoProduction $production;
+
+    /** アップロードする静止画（ラフ画・サンプル画像）。 */
+    public array $uploads = [];
+
+    /** アップロードする素材の種類（mock / image）。 */
+    public string $uploadKind = ProductionAsset::KIND_MOCK;
+
+    /** アップロードする素材の名前・説明。空ならファイル名。 */
+    public string $uploadTitle = '';
 
     /** 表示する制作案の版。指定がなければ確認済みの版、なければ最新の版。 */
     #[Url(as: 'plan')]
@@ -96,6 +113,53 @@ new #[Title('制作詳細')] class extends Component
         }
 
         $this->request(fn () => $request->handle($this->plan, $kind, auth()->user()));
+    }
+
+    public function uploadAssets(UploadProductionAsset $upload): void
+    {
+        $this->validate([
+            'uploads' => ['required', 'array', 'max:10'],
+            'uploads.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            'uploadKind' => ['required', Rule::in(ProductionAsset::IMAGE_KINDS)],
+            'uploadTitle' => ['nullable', 'string', 'max:255'],
+        ], attributes: ['uploads' => '画像', 'uploads.*' => '画像', 'uploadKind' => '種類', 'uploadTitle' => '名前・説明']);
+
+        foreach ($this->uploads as $file) {
+            $upload->handle($this->production, $file, $this->uploadKind, auth()->user(), $this->uploadTitle);
+        }
+
+        session()->flash('assetsUploaded', count($this->uploads).' 枚の画像を素材に追加しました。');
+        $this->reset('uploads', 'uploadTitle');
+        unset($this->assets);
+    }
+
+    public function deleteAsset(int $assetId, DeleteProductionAsset $delete): void
+    {
+        $this->resetErrorBag('asset');
+        $asset = $this->production->assets()->find($assetId);
+
+        if ($asset === null) {
+            return;
+        }
+
+        try {
+            $delete->handle($asset);
+        } catch (AssetInUseException $e) {
+            $this->addError('asset', $e->getMessage());
+        }
+
+        unset($this->assets);
+    }
+
+    /**
+     * この制作の素材（新しい順）。
+     *
+     * @return Collection<int, ProductionAsset>
+     */
+    #[Computed]
+    public function assets(): Collection
+    {
+        return $this->production->assets()->with('uploadedBy')->latest('id')->get();
     }
 
     /**
@@ -242,6 +306,64 @@ new #[Title('制作詳細')] class extends Component
         </dl>
         @if ($production->brief)
             <p class="text-sm leading-relaxed">{{ $production->brief }}</p>
+        @endif
+    </section>
+
+    <section class="space-y-3">
+        <div>
+            <h2 class="text-lg font-semibold">素材（ラフ画・サンプル画像）</h2>
+            <p class="text-xs {{ $muted }}">動画を作るときの参考にする静止画です。Remotion や Runway に渡す素材として、この制作の素材フォルダーに保存します。</p>
+        </div>
+
+        <form wire:submit="uploadAssets" class="flex flex-wrap items-end gap-3 rounded-sm border border-[#19140035] p-3 dark:border-[#3E3E3A]">
+            <label class="space-y-1 text-sm">
+                <span class="block {{ $muted }}">画像（jpg / png / webp、1 枚 10MB まで、10 枚まで）</span>
+                <input type="file" wire:model="uploads" multiple accept="image/jpeg,image/png,image/webp" class="text-sm">
+            </label>
+            <label class="space-y-1 text-sm">
+                <span class="block {{ $muted }}">種類</span>
+                <select wire:model="uploadKind" class="rounded-sm border border-[#19140035] bg-transparent px-2 py-1 dark:border-[#3E3E3A]">
+                    <option value="{{ ProductionAsset::KIND_MOCK }}">ラフ画</option>
+                    <option value="{{ ProductionAsset::KIND_IMAGE }}">サンプル画像</option>
+                </select>
+            </label>
+            <label class="min-w-48 flex-1 space-y-1 text-sm">
+                <span class="block {{ $muted }}">名前・説明（空ならファイル名）</span>
+                <input type="text" wire:model="uploadTitle" maxlength="255" class="w-full rounded-sm border border-[#19140035] bg-transparent px-2 py-1 dark:border-[#3E3E3A]">
+            </label>
+            <button type="submit" wire:loading.attr="disabled" wire:target="uploads,uploadAssets" class="{{ $button }}">アップロード</button>
+            <span wire:loading wire:target="uploads" class="text-xs {{ $muted }}">画像を読み込み中…</span>
+        </form>
+
+        @error('uploads') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+        @error('uploads.*') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+        @error('uploadKind') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+        @error('asset') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+        @if (session('assetsUploaded'))
+            <p class="text-sm text-green-700 dark:text-green-400">{{ session('assetsUploaded') }}</p>
+        @endif
+
+        @if ($this->assets->isEmpty())
+            <p class="text-sm {{ $muted }}">まだ素材がありません。</p>
+        @else
+            <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                @foreach ($this->assets as $asset)
+                    <li wire:key="asset-{{ $asset->id }}" class="space-y-1 rounded-sm border border-[#19140035] p-2 text-sm dark:border-[#3E3E3A]">
+                        <a href="{{ route('production-assets.file', $asset) }}" target="_blank" rel="noopener" class="block aspect-video bg-[#f5f5f3] dark:bg-[#1f1f1d]">
+                            @if ($asset->isImage())
+                                <img src="{{ route('production-assets.file', $asset) }}" alt="{{ $asset->title }}" loading="lazy" class="h-full w-full object-contain">
+                            @endif
+                        </a>
+                        <p class="truncate font-medium" title="{{ $asset->title }}">{{ $asset->title }}</p>
+                        <p class="text-xs {{ $muted }}">素材 ID {{ $asset->id }}・{{ $asset->kindLabel() }}</p>
+                        <p class="truncate text-xs {{ $muted }}" title="{{ $asset->original_name }}">{{ $asset->original_name }}</p>
+                        <div class="flex items-center justify-between text-xs {{ $muted }}">
+                            <span>{{ $asset->uploadedBy?->name ?? '—' }}・{{ $asset->created_at?->format('m-d H:i') }}</span>
+                            <button type="button" wire:click="deleteAsset({{ $asset->id }})" wire:confirm="この素材を削除します。よろしいですか。" class="{{ $subButton }}">削除</button>
+                        </div>
+                    </li>
+                @endforeach
+            </ul>
         @endif
     </section>
 
