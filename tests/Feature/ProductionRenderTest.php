@@ -11,6 +11,8 @@ use App\Models\ProductionRender;
 use App\Models\ProductionScene;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -278,5 +280,62 @@ class ProductionRenderTest extends TestCase
         $this->assertSame(ProductionRender::STATUS_FAILED, $render->refresh()->status);
         $this->assertStringContainsString('途中で止まりました', $render->error_message);
         Process::assertDidntRun(fn ($process) => str_contains(implode(' ', (array) $process->command), 'render.mjs'));
+    }
+
+    public function test_a_still_can_be_made_by_the_windows_server(): void
+    {
+        Storage::fake('local');
+        config(['remotion.still_driver' => 'windows', 'remotion.still_server.url' => 'http://host.docker.internal:3399', 'remotion.still_server.token' => 'secret']);
+        $scene = $this->plan->videoScenes()->where('scene_key', 's2')->sole();
+        $render = $this->request(ProductionRender::KIND_STILL, $scene);
+        $requestedFrame = $render->frame;
+        Http::fake(['host.docker.internal:3399/still' => Http::response('PNGDATA', 200, [
+            'Content-Type' => 'image/png', 'X-Render-Ms' => '2878', 'X-Width' => '1920', 'X-Height' => '1080', 'X-Frame' => '45',
+            'X-Remotion-Version' => '4.0.534', 'X-Code-Version' => 'remotion-src:0698d8ae76e98c3d',
+        ])]);
+
+        (new RenderProduction($render))->handle();
+
+        $render->refresh();
+        $this->assertSame(ProductionRender::STATUS_COMPLETED, $render->status);
+        $this->assertSame([7, 2878, 1920, 1080, 45, 'remotion-src:0698d8ae76e98c3d'], [$render->size_bytes, $render->render_ms, $render->width, $render->height, $render->frame, $render->code_version]);
+        Storage::disk('local')->assertExists($render->storage_path);
+        $this->assertSame($render->storage_path, $scene->refresh()->preview_path);
+        // 記録したフレーム（場面の中ほど）を頼む。0 フレーム目はフェードの始まりで画面がほぼ空になるため。
+        $this->assertGreaterThan(0, $requestedFrame);
+        Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer secret')
+            && $request['inputProps']['scene']['key'] === 's2' && $request['frame'] === $requestedFrame);
+        Process::assertDidntRun(fn ($process) => str_contains(implode(' ', (array) $process->command), 'render.mjs'));
+    }
+
+    public function test_an_unreachable_windows_server_explains_how_to_start_it(): void
+    {
+        Storage::fake('local');
+        config(['remotion.still_driver' => 'windows']);
+        $render = $this->request(ProductionRender::KIND_STILL, $this->plan->videoScenes()->first());
+        Http::fake(fn () => throw new ConnectionException('Connection refused'));
+
+        try {
+            (new RenderProduction($render))->handle();
+            $this->fail('例外が投げられませんでした。');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('still-server-windows.mjs', $e->getMessage());
+        }
+    }
+
+    public function test_videos_are_still_rendered_in_the_container_when_stills_go_to_windows(): void
+    {
+        Storage::fake('local');
+        config(['remotion.still_driver' => 'windows']);
+        Http::fake();
+        $render = $this->request(ProductionRender::KIND_PREVIEW);
+        Process::fake(['*render.mjs*' => Process::describe()
+            ->output('{"type":"done","outputPath":"x","sizeBytes":10,"renderMs":5,"width":960,"height":540,"fps":30,"durationInFrames":165,"frame":null,"remotionVersion":"4.0.534"}')
+            ->exitCode(0)]);
+
+        (new RenderProduction($render))->handle();
+
+        $this->assertSame(ProductionRender::STATUS_COMPLETED, $render->refresh()->status);
+        Http::assertNothingSent();
     }
 }

@@ -63,6 +63,20 @@ return [
     // 書き出しが終わらないときに打ち切るまでの秒数。
     'timeout' => (int) env('REMOTION_TIMEOUT', 1800),
 
+    // 場面の静止画を作る場所。
+    //   wsl     … このコンテナで remotion/scripts/render.mjs を動かす（これまでどおり）
+    //   windows … Windows で動かしている静止画のサーバー（remotion/scripts/still-server-windows.mjs）に頼む。
+    //             描くのは remotion/src の Scene（動画と同じ部品）。準備は remotion/windows/README.md。
+    //             この PC では WSL 内のバンドルで CPU のハードウェアエラーが起きるため、静止画は Windows で作る。
+    'still_driver' => env('REMOTION_STILL_DRIVER', 'wsl'),
+
+    'still_server' => [
+        // コンテナから Windows へは host.docker.internal で届く（サーバーは 127.0.0.1 で待ち受けてよい）。
+        'url' => env('REMOTION_STILL_SERVER_URL', 'http://host.docker.internal:3399'),
+        'token' => env('REMOTION_STILL_SERVER_TOKEN'),
+        'timeout' => (int) env('REMOTION_STILL_SERVER_TIMEOUT', 180),
+    ],
+
     // 動画を書き出すときに同時に描くフレーム数。CPU の全コアに負荷をかけると、この PC では
     // WSL が落ちることがあったため、既定は 1（遅くなるが安全）。
     'concurrency' => (int) env('REMOTION_CONCURRENCY', 1),

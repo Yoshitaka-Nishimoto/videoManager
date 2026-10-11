@@ -6,6 +6,8 @@ use App\Actions\Productions\CancelProductionRender;
 use App\Models\ProductionRender;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
@@ -74,6 +76,13 @@ class RenderProduction implements ShouldQueue
         $disk = Storage::disk(config('remotion.disk'));
         $storagePath = config('remotion.output_directory').'/'.$render->id.'-'.$render->kind.'.'.$this->extension();
         $disk->makeDirectory(dirname($storagePath));
+
+        // 静止画は、設定によって Windows の静止画のサーバーに頼む（config/remotion.php の still_driver）。
+        if ($render->isStill() && config('remotion.still_driver') === 'windows') {
+            $this->renderStillOnWindows($storagePath);
+
+            return;
+        }
 
         $jobPath = tempnam(sys_get_temp_dir(), 'remotion-job-');
         file_put_contents($jobPath, json_encode([
@@ -225,6 +234,64 @@ class RenderProduction implements ShouldQueue
     private function appendLog(string $text): void
     {
         $this->log = Str::substr($this->log.$text, -self::LOG_LIMIT);
+    }
+
+    /**
+     * Windows の静止画のサーバー（remotion/scripts/still-server-windows.mjs）に入力を送り、返ってきた画像を保存する。
+     * サーバーは remotion/src の Scene で描くため、動画と同じ見た目になる。フレームは記録したもの（場面の中ほど）。
+     */
+    private function renderStillOnWindows(string $storagePath): void
+    {
+        $render = $this->render;
+        $server = config('remotion.still_server');
+
+        $render->update([
+            'status' => ProductionRender::STATUS_RUNNING,
+            'stage' => ProductionRender::STAGE_RENDERING,
+            'progress' => 0,
+            'started_at' => now(),
+        ]);
+
+        try {
+            $response = Http::timeout((int) $server['timeout'])
+                ->when($server['token'], fn ($request, string $token) => $request->withToken($token))
+                ->post(rtrim($server['url'], '/').'/still', [
+                    'inputProps' => $render->input_props,
+                    'imageFormat' => $render->image_format ?? 'png',
+                    'scale' => (float) $render->scale,
+                    'frame' => $render->frame,
+                ]);
+        } catch (ConnectionException $e) {
+            throw new RuntimeException('Windows の静止画のサーバーにつながりません。Windows の PowerShell で remotion フォルダから node scripts\still-server-windows.mjs を起動してください。', previous: $e);
+        }
+
+        if ($response->failed()) {
+            throw new RuntimeException('Windows の静止画のサーバーで失敗しました：'.($response->json('error') ?? "HTTP {$response->status()}"));
+        }
+
+        // 待っている間に取り消されていたら、画像は保存しない。
+        if ($this->wasCancelled()) {
+            return;
+        }
+
+        Storage::disk(config('remotion.disk'))->put($storagePath, $response->body());
+
+        $this->done = [
+            'sizeBytes' => strlen($response->body()),
+            'renderMs' => (int) $response->header('X-Render-Ms'),
+            'width' => (int) $response->header('X-Width'),
+            'height' => (int) $response->header('X-Height'),
+            'fps' => $render->fps,
+            'durationInFrames' => $render->duration_in_frames,
+            'frame' => $response->hasHeader('X-Frame') ? (int) $response->header('X-Frame') : $render->frame,
+            'remotionVersion' => $response->header('X-Remotion-Version') ?: null,
+        ];
+        $this->complete($storagePath);
+
+        // Windows でまとめた remotion/src の版（Git のコミットではなくコードのハッシュ）を残す。
+        if ($codeVersion = $response->header('X-Code-Version')) {
+            $render->update(['code_version' => mb_substr($codeVersion, 0, 64)]);
+        }
     }
 
     private function complete(string $storagePath): void
