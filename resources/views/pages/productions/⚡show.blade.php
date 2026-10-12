@@ -315,10 +315,65 @@ new #[Title('制作詳細')] class extends Component
             <p class="text-xs {{ $muted }}">動画を作るときの参考にする静止画です。Remotion や Runway に渡す素材として、この制作の素材フォルダーに保存します。</p>
         </div>
 
-        <form wire:submit="uploadAssets" class="flex flex-wrap items-end gap-3 rounded-sm border border-[#19140035] p-3 dark:border-[#3E3E3A]">
+        <form
+            wire:submit="uploadAssets"
+            x-data="{
+                compressing: false,
+                uploading: false,
+                progress: 0,
+                failed: false,
+                notes: [],
+                // 1MB を超える画像はブラウザで縮めてから送る（resources/js/image-compress.js）。
+                async pick(event) {
+                    const input = event.target;
+                    const files = Array.from(input.files);
+                    input.value = '';
+                    if (files.length === 0) return;
+
+                    this.failed = false;
+                    this.notes = [];
+                    this.compressing = true;
+                    const shrunk = [];
+                    for (const file of files) {
+                        const result = await window.shrinkImage(file);
+                        shrunk.push(result.file);
+                        if (result.compressed) {
+                            this.notes.push(file.name + '：' + window.formatBytes(result.before) + ' → ' + window.formatBytes(result.after));
+                        }
+                    }
+                    this.compressing = false;
+
+                    // wire:loading（wire:target=uploads）が反応するよう、wire:model と同じイベントを出す。
+                    const detail = { id: $wire.$id, property: 'uploads' };
+                    const send = (name, extra = {}) => input.dispatchEvent(new CustomEvent(name, { bubbles: true, detail: { ...detail, ...extra } }));
+                    send('livewire-upload-start');
+                    $wire.$uploadMultiple(
+                        'uploads',
+                        shrunk,
+                        () => send('livewire-upload-finish'),
+                        () => send('livewire-upload-error'),
+                        (e) => send('livewire-upload-progress', { progress: Math.round(e.detail.progress) }),
+                        () => send('livewire-upload-cancel'),
+                        false,
+                    );
+                },
+            }"
+            x-on:livewire-upload-start="uploading = true; failed = false; progress = 0"
+            x-on:livewire-upload-finish="uploading = false"
+            x-on:livewire-upload-cancel="uploading = false"
+            x-on:livewire-upload-error="uploading = false; failed = true"
+            x-on:livewire-upload-progress="progress = $event.detail.progress"
+            class="flex flex-wrap items-end gap-3 rounded-sm border border-[#19140035] p-3 dark:border-[#3E3E3A]"
+        >
             <label class="space-y-1 text-sm">
-                <span class="block {{ $muted }}">画像（jpg / png / webp、1 枚 10MB まで、10 枚まで）</span>
-                <input type="file" wire:model="uploads" multiple accept="image/jpeg,image/png,image/webp" class="text-sm">
+                <span class="block {{ $muted }}">画像（jpg / png / webp、10 枚まで。1MB を超える画像は送る前に自動で縮めます）</span>
+                <input
+                    type="file"
+                    x-on:change="pick($event)"
+                    multiple
+                    accept="image/jpeg,image/png,image/webp"
+                    class="block text-sm file:mr-3 file:cursor-pointer file:rounded-sm file:border file:border-solid file:border-[#19140035] file:bg-white file:px-3 file:py-1 file:text-sm hover:file:border-[#1915014a] dark:file:border-[#3E3E3A] dark:file:bg-[#161615] dark:file:text-[#EDEDEC]"
+                >
             </label>
             <label class="space-y-1 text-sm">
                 <span class="block {{ $muted }}">種類</span>
@@ -331,8 +386,32 @@ new #[Title('制作詳細')] class extends Component
                 <span class="block {{ $muted }}">名前・説明（空ならファイル名）</span>
                 <input type="text" wire:model="uploadTitle" maxlength="255" class="w-full rounded-sm border border-[#19140035] bg-transparent px-2 py-1 dark:border-[#3E3E3A]">
             </label>
-            <button type="submit" wire:loading.attr="disabled" wire:target="uploads,uploadAssets" class="{{ $button }}">アップロード</button>
-            <span wire:loading wire:target="uploads" class="text-xs {{ $muted }}">画像を読み込み中…</span>
+            {{-- 押せない状態は Alpine だけで決める。wire:loading.attr と併用すると、読み込み前の disabled を戻してしまう。 --}}
+            <button type="submit" x-bind:disabled="compressing || uploading" class="{{ $button }}">アップロード</button>
+            <span x-show="compressing" x-cloak class="text-xs {{ $muted }}">画像を縮めています…</span>
+            <span x-show="uploading" x-cloak class="text-xs {{ $muted }}">画像を読み込み中…（<span x-text="progress"></span>%）</span>
+            <p x-show="failed" x-cloak class="w-full text-sm text-red-600">画像を読み込めませんでした。jpg / png / webp で 10MB 以下か確かめて、もう一度選んでください。</p>
+            <ul x-show="notes.length > 0" x-cloak class="w-full text-xs {{ $muted }}">
+                <template x-for="note in notes" :key="note">
+                    <li>縮めました：<span x-text="note"></span></li>
+                </template>
+            </ul>
+
+            @if ($uploads !== [])
+                <ul class="flex w-full flex-wrap gap-2">
+                    @foreach ($uploads as $index => $file)
+                        <li wire:key="upload-{{ $index }}" class="w-28 space-y-1 text-xs {{ $muted }}">
+                            @php($previewUrl = rescue(fn () => $file->temporaryUrl(), null, false))
+                            <div class="aspect-video bg-[#f5f5f3] dark:bg-[#1f1f1d]">
+                                @if ($previewUrl)
+                                    <img src="{{ $previewUrl }}" alt="" class="h-full w-full object-contain">
+                                @endif
+                            </div>
+                            <p class="truncate" title="{{ $file->getClientOriginalName() }}">{{ $file->getClientOriginalName() }}</p>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
         </form>
 
         @error('uploads') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
@@ -525,7 +604,7 @@ new #[Title('制作詳細')] class extends Component
                                     <p class="text-xs {{ $muted }}">{{ $scene->scene_type }} · {{ rtrim(rtrim($scene->duration_seconds, '0'), '.') }} 秒 · {{ $scene->statusLabel() }}</p>
                                 </div>
                                 @unless ($scene->isRunway())
-                                    <button type="button" wire:click="renderStill({{ $scene->id }})" wire:loading.attr="disabled" @disabled($stillInProgress) class="{{ $subButton }} shrink-0">静止画</button>
+                                    <button type="button" wire:click="renderStill({{ $scene->id }})" wire:loading.attr="disabled" wire:target="renderStill" @disabled($stillInProgress) class="{{ $subButton }} shrink-0">静止画</button>
                                 @endunless
                             </div>
                             @if ($plan->isEditable())

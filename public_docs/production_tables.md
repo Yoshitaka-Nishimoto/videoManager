@@ -85,7 +85,7 @@ runway_task_inputs >── production_assets       （人が用意した素材�
 | created_at / updated_at | timestamp | 作成・更新日時 |
 
 - 案 1（あなたが描いたモック図）は `kind = mock` の素材として登録し、制作案を作るときに Gemini に渡す。
-- 制作画面の「素材」から静止画をアップロードする。種類はラフ画（`mock`）とサンプル画像（`image`）、形式は jpg / png / webp、1 枚 10MB まで。
+- 制作画面の「素材」から静止画をアップロードする。種類はラフ画（`mock`）とサンプル画像（`image`）、形式は jpg / png / webp、1 枚 10MB まで。1MB を超える画像は、送る前にブラウザで WebP に縮める（長い辺 2560px まで、品質を下げても収まらなければ縦横も縮める。`resources/js/image-compress.js`）。
 - 保存先は非公開のディスク（`local`）の制作ごとのフォルダー `productions/{制作ID}/assets/`。ファイル名は ULID にし、元の名前は `original_name` に残す。画面には `production-assets/{素材ID}/file` を通して見せる。
 - Runway に渡した素材（`runway_task_inputs`）、制作案のモック図（`mock_asset_ids`）、場面の内容の `{ "asset_id": ID }` から参照している素材は削除できない。
 
