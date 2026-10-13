@@ -92,7 +92,9 @@ node scripts\still-windows.mjs fixtures\sample.json
                      → storage/app/private に保存し、production_renders と場面の preview_path を更新 → 画面に表示
 ```
 
-1. Laravel の `.env` に `REMOTION_STILL_DRIVER=windows` を加え、`sail artisan config:clear` とキューワーカーの再起動をする。
+1. Laravel の `.env` に `REMOTION_STILL_DRIVER=windows` を加える。書き出し用のワーカーを `sail artisan dev`
+   または `sail artisan queue:listen remotion --tries=1 --timeout=1900` で動かしていれば、次の依頼から反映される。
+   `queue:work` で動かしているとき、または `config:cache` をしたときは、`sail artisan config:clear` とワーカーの再起動が必要。
 2. Windows の PowerShell でサーバーを起動し、開いたままにする（`still-windows.mjs` を先に動かす必要はない）。
 
    ```powershell

@@ -87,7 +87,7 @@ Claude は Studio をバックグラウンドで起動しない（人がター�
 | 場所 | 役割 |
 |---|---|
 | `app/Actions/Productions/RequestProductionRender.php` | 書き出しの依頼。production_renders の行を作り、ジョブをキューに入れる |
-| `app/Jobs/RenderProduction.php` | `render.mjs` を実行して進捗と結果を記録する。キューの接続は `remotion`（専用のワーカー：`queue:work remotion --tries=1 --timeout=1900`） |
+| `app/Jobs/RenderProduction.php` | `render.mjs` を実行して進捗と結果を記録する。キューの接続は `remotion`（専用のワーカー：`queue:listen remotion --tries=1 --timeout=1900`。ジョブごとにアプリを読み直すので、`.env` やコードを変えても再起動はいらない） |
 | `app/Services/Remotion/RemotionInput.php` | 制作案と場面から入力（input props）を作る |
 | `resources/views/pages/productions/` | 制作の一覧と詳細（静止画・動画の書き出しボタン、履歴、再生） |
 | `ProductionRenderFileController` | 書き出したファイルを返す（`production-renders/{render}/file`） |

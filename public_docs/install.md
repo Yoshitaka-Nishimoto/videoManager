@@ -80,11 +80,15 @@ docker compose exec -T -u sail laravel.test bash -c 'cd remotion && npm install'
 書き出し（RenderProduction）は専用のキューの接続 `remotion` で動く。最大 30 分かかるため、通常のワーカー（分析など）とは分けて起動する。
 
 ```bash
-./vendor/bin/sail artisan queue:work                                    # 通常（分析など）
-./vendor/bin/sail artisan queue:work remotion --tries=1 --timeout=1900  # Remotion の書き出し
+./vendor/bin/sail artisan queue:listen                                    # 通常（分析など）
+./vendor/bin/sail artisan queue:listen remotion --tries=1 --timeout=1900  # Remotion の書き出し
 ```
 
 `./vendor/bin/sail artisan dev` で起動した場合は、両方のワーカーが自動で起動する。
+
+開発中は `queue:work` ではなく `queue:listen` を使う。`queue:listen` はジョブを 1 件処理するたびにアプリを読み直すため、
+`.env`（例：`REMOTION_STILL_DRIVER`）や PHP のコードを変えても、ワーカーの再起動はいらない（1 件ごとに少し遅くなる）。
+`queue:work` は起動したときの設定とコードを使い続けるので、変えたときは再起動が必要になる。
 書き出しの打ち切りは `.env` の `REMOTION_TIMEOUT`（秒、既定 1800）。変えたときは `--timeout` を「REMOTION_TIMEOUT＋100」程度にする。
 
 ### Remotion Studio

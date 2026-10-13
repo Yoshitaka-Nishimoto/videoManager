@@ -532,7 +532,7 @@ new #[Title('制作詳細')] class extends Component
                             @if ($progress['late'] && $progress['stage'] === 'waiting')
                                 <p class="text-xs text-amber-700 dark:text-amber-400">
                                     順番待ちが続いています。キューのワーカーが動いていない可能性があります。ターミナルで
-                                    <code class="rounded-sm bg-white px-1 dark:bg-[#161615]">./vendor/bin/sail artisan queue:work</code>
+                                    <code class="rounded-sm bg-white px-1 dark:bg-[#161615]">./vendor/bin/sail artisan queue:listen</code>
                                     を起動するか、「止める」を押してください。
                                 </p>
                             @elseif ($progress['late'])
@@ -685,7 +685,7 @@ new #[Title('制作詳細')] class extends Component
                                         <span class="ml-1 text-xs">{{ $render->progress }}%</span>
                                         <button type="button" wire:click="cancelRender({{ $render->id }})" wire:confirm="この書き出しを取り消します。よろしいですか。" class="{{ $subButton }} ml-2">取り消す</button>
                                         @if ($render->status === ProductionRender::STATUS_QUEUED && $render->created_at?->lt(now()->subSeconds(20)))
-                                            <p class="text-xs text-amber-700 dark:text-amber-400">順番待ちが続いています。書き出し用のワーカー（queue:work remotion）が動いていない可能性があります。</p>
+                                            <p class="text-xs text-amber-700 dark:text-amber-400">順番待ちが続いています。書き出し用のワーカー（queue:listen remotion）が動いていない可能性があります。</p>
                                         @elseif ($render->status === ProductionRender::STATUS_RUNNING && $render->updated_at?->lt(now()->subMinutes(2)))
                                             <p class="text-xs text-amber-700 dark:text-amber-400">2 分以上進んでいません。WSL が落ちたなどで止まっている場合は「取り消す」を押してください。</p>
                                         @endif

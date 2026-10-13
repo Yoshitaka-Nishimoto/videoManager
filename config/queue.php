@@ -46,7 +46,7 @@ return [
 
         // Remotion の書き出し専用（RenderProduction）。書き出しは最大 30 分かかるため、retry_after を
         // 書き出しの打ち切り（config/remotion.php の timeout）より長くし、実行中のジョブが二重に動かないようにする。
-        // ワーカー：php artisan queue:work remotion --tries=1 --timeout=1900
+        // ワーカー：php artisan queue:listen remotion --tries=1 --timeout=1900（php artisan dev では自動で起動する）
         'remotion' => [
             'driver' => 'database',
             'connection' => env('DB_QUEUE_CONNECTION'),

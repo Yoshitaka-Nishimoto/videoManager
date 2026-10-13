@@ -1,0 +1,49 @@
+{
+  "settings": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "style": {
+      "font": "Noto Sans JP",
+      "theme": "light"
+    }
+  },
+  "scenes": [
+    {
+      "key": "s1",
+      "scene_type": "remotion.title",
+      "title": "導入",
+      "duration_seconds": 3,
+      "narration": null,
+      "caption": null,
+      "transition": "fade",
+      "content": {
+        "title": {
+          "heading": "ここに見出し",
+          "subheading": "ここに副題",
+          "layout": "center"
+        }
+      }
+    },
+    {
+      "key": "s2",
+      "scene_type": "remotion.text",
+      "title": "要点",
+      "duration_seconds": 4,
+      "narration": null,
+      "caption": null,
+      "transition": "fade",
+      "content": {
+        "text": {
+          "heading": "3 つの要点",
+          "items": [
+            "1 つ目",
+            "2 つ目",
+            "3 つ目"
+          ],
+          "reveal": "all"
+        }
+      }
+    }
+  ]
+}
