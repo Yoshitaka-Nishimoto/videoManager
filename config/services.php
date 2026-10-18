@@ -32,6 +32,16 @@ return [
         'key' => env('YOUTUBE_API_KEY'),
     ],
 
+    // Runway API（画像・動画の生成）。キーは developer.runwayml.com で発行し、クレジットを購入しておく。
+    'runway' => [
+        'key' => env('RUNWAY_API_KEY'),
+        'base_url' => env('RUNWAY_BASE_URL', 'https://api.dev.runwayml.com/v1'),
+        'version' => env('RUNWAY_API_VERSION', '2024-11-06'),
+        // 生成の完了を待つ上限（秒）と、状態を確かめる間隔（秒）。
+        'wait_seconds' => (int) env('RUNWAY_WAIT_SECONDS', 300),
+        'poll_seconds' => (int) env('RUNWAY_POLL_SECONDS', 5),
+    ],
+
     // 動画分析に使う実装（dummy / gemini）と、Gemini のモデル（空なら SDK の既定）。
     // 混雑・回数制限のときは、代わりのモデル（カンマ区切り）を順に試す。
     'video_analyzer' => [

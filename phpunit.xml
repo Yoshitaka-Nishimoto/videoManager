@@ -35,5 +35,7 @@
         <env name="YOUTUBE_API_KEY" value=""/>
         <env name="GEMINI_API_KEY" value=""/>
         <env name="ANTHROPIC_API_KEY" value=""/>
+        <env name="RUNWAY_API_KEY" value=""/>
+        <env name="REMOTION_STILL_DRIVER" value="wsl"/>
     </php>
 </phpunit>

@@ -40,6 +40,7 @@ class AiUsageRecorder
         bool $succeeded = true,
         ?string $errorMessage = null,
         string $defaultFeature = 'other',
+        ?float $estimatedCost = null,
     ): AiUsageLog {
         $scope = Context::getHidden(self::CONTEXT_KEY, []);
 
@@ -51,7 +52,8 @@ class AiUsageRecorder
             'usable_id' => $scope['usable_id'] ?? null,
             'input_tokens' => $inputTokens,
             'output_tokens' => $outputTokens,
-            'estimated_cost' => $this->estimateCost($model, $inputTokens, $outputTokens),
+            // トークンで数えない呼び出し（Runway のクレジットなど）は、呼び出し側が費用を渡す。
+            'estimated_cost' => $estimatedCost ?? $this->estimateCost($model, $inputTokens, $outputTokens),
             'succeeded' => $succeeded,
             'error_message' => $errorMessage,
         ]);

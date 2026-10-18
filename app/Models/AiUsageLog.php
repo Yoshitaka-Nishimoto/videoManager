@@ -32,6 +32,9 @@ class AiUsageLog extends Model
     /** 制作案の台本の候補作り（usable は制作案）。 */
     public const FEATURE_SCRIPT = 'script';
 
+    /** Runway での画像・動画の生成（usable は Runway の生成依頼）。費用はクレジットから計算し、トークン数は 0。 */
+    public const FEATURE_GENERATION = 'generation';
+
     /**
      * Get the attributes that should be cast.
      *

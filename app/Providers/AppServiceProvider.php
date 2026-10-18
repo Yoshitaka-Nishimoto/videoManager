@@ -6,6 +6,7 @@ use App\Services\Ai\GeminiModels;
 use App\Services\Analysis\DummyVideoAnalyzer;
 use App\Services\Analysis\GeminiVideoAnalyzer;
 use App\Services\Analysis\VideoAnalyzer;
+use App\Services\Runway\RunwayClient;
 use App\Services\Script\DummyScriptWriter;
 use App\Services\Script\GeminiScriptWriter;
 use App\Services\Script\ScriptWriter;
@@ -21,6 +22,12 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(YouTubeClient::class, fn () => new YouTubeClient(config('services.youtube.key')));
+
+        $this->app->singleton(RunwayClient::class, fn () => new RunwayClient(
+            config('services.runway.key'),
+            config('services.runway.base_url'),
+            config('services.runway.version'),
+        ));
 
         $this->app->bind(VideoAnalyzer::class, fn ($app) => match (config('services.video_analyzer.driver')) {
             // .env で空欄（GEMINI_ANALYSIS_MODEL=）のときは SDK の既定モデルを使う。

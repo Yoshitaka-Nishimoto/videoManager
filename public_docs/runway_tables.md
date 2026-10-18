@@ -116,6 +116,30 @@ queued（作成、未送信）
 | production_scenes | 依頼側の `production_scene_id` で場面につなぐ（やり直しを含めて複数）。場面側の `selected_output_id` で、使う生成物を 1 つ選ぶ |
 | production_assets | 入力側の `production_asset_id` で、人が用意した素材につなぐ |
 
+## 人物の画像を作るコマンド（runway:image）
+
+人物のサンプル画像を参照画像にして `gen4_image` で画像を作り、制作の素材（production_assets、種類は image）に登録する。
+
+```bash
+./vendor/bin/sail artisan runway:image storage/app/private/productions/12/assets/xxx.jpg \
+    --shot=上半身 --background=ブルーバック --style=漫画 --dry-run
+```
+
+| 指定 | 内容 |
+|---|---|
+| `--shot` | `face` / `upper`（既定）/ `full`、または 顔 / 上半身 / 全身 |
+| `--background` | `blue`（既定）/ `green` / `white` / `park` / `office` / `studio`、または 公園 などの日本語、背景を説明する英語の文 |
+| `--style` | `photo`（既定）/ `manga` / `anime` / `illustration`、または 写真 / 漫画 / アニメ / イラスト |
+| `--prompt` | 追加の指示（英語） |
+| `--ratio` | 省略すると制作の比率に合わせる（1280:720 → 1920:1080 など） |
+| `--model` | `gen4_image`（既定、1080p で 8 クレジット）/ `gen4_image_turbo`（2 クレジット） |
+| `--dry-run` | Runway に送らず、指示文と費用の見積もりだけ表示する |
+
+- 登録先の制作は、画像のパス（`productions/{制作ID}/`）から判定する。ほかの場所の画像は `--production` で指定する。
+- 生成物は `runway/{依頼ID}/` に保存し、素材フォルダーにも複製して登録する（素材を削除しても生成の記録は残る）。
+- 参照画像はアップロード（`runway://`）ではなく Data URI で渡す（3.7MB まで）。そのため `runway_task_inputs.runway_uri` は空にする。
+- 処理は `app/Actions/Productions/GenerateRunwayImage.php`、指示文の組み立ては `app/Services/Runway/PersonImagePrompt.php`。
+
 ## 後で決めること
 
 - ファイルの保存先（当面は `local` ディスク、容量が増えたら S3 などに移す）。
