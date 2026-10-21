@@ -28,6 +28,8 @@ class ProductionCreateTest extends TestCase
             ->assertSet('structure', 'compare')
             ->set('genre', 'video_creation')
             ->assertSet('structure', 'howto')
+            ->set('genre', 'investment')
+            ->assertSet('structure', 'explain')
             ->set('structure', 'short')
             ->set('genre', 'ai')
             ->assertSet('structure', 'short');

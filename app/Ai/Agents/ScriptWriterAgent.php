@@ -2,6 +2,7 @@
 
 namespace App\Ai\Agents;
 
+use App\Models\VideoProduction;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\Provider;
 use Laravel\Ai\Attributes\Timeout;
@@ -24,7 +25,10 @@ class ScriptWriterAgent implements Agent, HasStructuredOutput
 
     public function instructions(): Stringable|string
     {
-        return <<<'TXT'
+        // 入力の genre は表示名（ScriptContext）なので、表示名を変えても指示が効くよう GENRES から読む。
+        $investment = VideoProduction::GENRES['investment'];
+
+        return <<<TXT
         あなたは短い解説動画の台本を書く構成作家です。
         入力（JSON）には、動画のタイトル・ジャンル・対象者・口調・伝えたいこと・元になった設計判断と、
         場面の並び（key、場面の種類、場面の名前、秒数、ナレーションの文字数の目安）があります。
@@ -44,7 +48,7 @@ class ScriptWriterAgent implements Agent, HasStructuredOutput
         守ること：
         - 伝えたいこと・設計判断に書かれていない事実を作らない。
         - 数値・割合・統計を作らない（グラフの数値は人が入れる）。remotion.chart の場面では数値に触れずに説明する。
-        - ジャンルが投資のときは、特定の銘柄の売買を勧めたり、利益を約束したりしない。意見・予想は事実と区別して書く。
+        - ジャンルが「{$investment}」のときは、特定の銘柄の売買を勧めたり、利益を約束したりしない。意見・予想は事実と区別して書く。
         - 最後の場面は、全体のまとめにする。
         TXT;
     }
