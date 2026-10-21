@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\KnowledgeCodeLink;
 use App\Models\KnowledgeEdge;
 use App\Models\KnowledgeNode;
 use App\Models\KnowledgeRelationType;
@@ -143,5 +144,54 @@ class KnowledgeGraphTest extends TestCase
         $this->assertSame(8, KnowledgeRelationType::count());
         $this->assertTrue(KnowledgeRelationType::where('key', 'related_to')->value('allow_cycle'));
         $this->assertFalse(KnowledgeRelationType::where('key', 'prerequisite_of')->value('allow_cycle'));
+    }
+
+    public function test_an_implementation_node_links_to_code_locations(): void
+    {
+        $implementation = KnowledgeNode::factory()->implementation()->create();
+        $link = KnowledgeCodeLink::factory()->for($implementation, 'node')->create();
+        KnowledgeCodeLink::factory()->for($implementation, 'node')->wholeFile()->create();
+
+        $this->assertSame(KnowledgeNode::STATUS_CANDIDATE, $link->refresh()->status);
+        $this->assertFalse($link->isMissing());
+        $this->assertCount(2, $implementation->codeLinks);
+    }
+
+    public function test_the_same_code_location_cannot_be_linked_twice(): void
+    {
+        $link = KnowledgeCodeLink::factory()->create();
+
+        $this->expectException(UniqueConstraintViolationException::class);
+
+        KnowledgeCodeLink::factory()->create($link->only(['knowledge_node_id', 'path', 'symbol']));
+    }
+
+    public function test_the_same_whole_file_cannot_be_linked_twice(): void
+    {
+        $link = KnowledgeCodeLink::factory()->wholeFile()->create();
+
+        $this->expectException(UniqueConstraintViolationException::class);
+
+        KnowledgeCodeLink::factory()->wholeFile()->create($link->only(['knowledge_node_id', 'path']));
+    }
+
+    public function test_a_node_with_code_links_cannot_be_deleted(): void
+    {
+        $link = KnowledgeCodeLink::factory()->create();
+
+        $this->expectException(QueryException::class);
+
+        $link->node->delete();
+    }
+
+    public function test_a_wrong_edge_records_the_edge_that_replaced_it(): void
+    {
+        $wrong = KnowledgeEdge::factory()->create(['status' => KnowledgeNode::STATUS_DEPRECATED]);
+        $correct = KnowledgeEdge::factory()->create($wrong->only(['source_node_id', 'target_node_id']));
+
+        $wrong->update(['replaced_by_id' => $correct->id]);
+
+        $this->assertTrue($wrong->replacedBy->is($correct));
+        $this->assertTrue($correct->replaces->contains($wrong));
     }
 }

@@ -67,6 +67,17 @@ class KnowledgeNodeFactory extends Factory
     }
 
     /**
+     * An implementation node.
+     */
+    public function implementation(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'node_type' => KnowledgeNode::TYPE_IMPLEMENTATION,
+            'proposed_by' => KnowledgeNode::PROPOSED_BY_HUMAN,
+        ]);
+    }
+
+    /**
      * Indicate that a person has confirmed the node.
      */
     public function confirmed(): static

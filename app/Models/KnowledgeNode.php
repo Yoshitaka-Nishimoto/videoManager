@@ -162,6 +162,16 @@ class KnowledgeNode extends Model
     }
 
     /**
+     * この実装ノードに対応するコードの場所。
+     *
+     * @return HasMany<KnowledgeCodeLink, $this>
+     */
+    public function codeLinks(): HasMany
+    {
+        return $this->hasMany(KnowledgeCodeLink::class);
+    }
+
+    /**
      * この設計判断から作る動画の制作。
      *
      * @return HasMany<VideoProduction, $this>

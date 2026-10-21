@@ -7,12 +7,14 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 #[Fillable([
     'source_node_id',
     'target_node_id',
     'relation_type_id',
+    'replaced_by_id',
     'status',
     'confidence',
     'proposed_by',
@@ -59,6 +61,26 @@ class KnowledgeEdge extends Model
     public function relationType(): BelongsTo
     {
         return $this->belongsTo(KnowledgeRelationType::class, 'relation_type_id');
+    }
+
+    /**
+     * この関係を置き換えた、正しい関係。
+     *
+     * @return BelongsTo<KnowledgeEdge, $this>
+     */
+    public function replacedBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'replaced_by_id');
+    }
+
+    /**
+     * この関係が置き換えた、誤っていた関係。
+     *
+     * @return HasMany<KnowledgeEdge, $this>
+     */
+    public function replaces(): HasMany
+    {
+        return $this->hasMany(self::class, 'replaced_by_id');
     }
 
     /**
