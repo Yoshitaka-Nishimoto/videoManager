@@ -42,6 +42,7 @@ class VideoProduction extends Model
         'ai' => 'AI関連',
         'video_creation' => '動画作成',
         'healthy_longevity' => '健康寿命',
+        'investment' => '投資',
         'other' => 'その他',
     ];
 

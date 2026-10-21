@@ -52,6 +52,7 @@ final class ProductionTemplate
         'ai' => 'explain',
         'video_creation' => 'howto',
         'healthy_longevity' => 'compare',
+        'investment' => 'explain',
         'other' => 'explain',
     ];
 
