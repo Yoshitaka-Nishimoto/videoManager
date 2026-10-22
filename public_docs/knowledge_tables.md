@@ -12,10 +12,10 @@ design.md の「画面は一点から周囲を見る形にする」を実現す�
 | 中央 | 選んだノードの説明と状態 | `knowledge_nodes`（title、description、status、proposed_by、confirmed_by） | 済み |
 | 左側 | 根拠となった動画・分析・会話、動画の該当時刻 | `knowledge_sources`（video_id、video_analysis_id、agent_conversation_message_id、start_seconds、end_seconds、excerpt） | 済み |
 | 右側 | 関連する概念・設計判断・実装 | `knowledge_edges` ＋ `knowledge_relation_types`（label、inverse_label） | 済み |
-| 右側 | **実装がコードのどこにあるか** | **`knowledge_code_links`（新規）** | テーブル・モデルのみ済み（画面は未） |
+| 右側 | **実装がコードのどこにあるか** | **`knowledge_code_links`（新規）** | 済み（設計判断から実装を作る → 実装にコードをつなぐ → 概念・設計判断の画面に表示）。graph.json との照合は未 |
 | 操作 | 関係の追加・候補の採用・統合 | `knowledge_edges`、`knowledge_nodes.merged_into_id`、`knowledge_revisions` | 済み |
 | 操作 | **誤った関係の修正**（正しい関係への置き換え） | **`knowledge_edges.replaced_by_id`（列の追加）** | 列・リレーションのみ済み（操作は未） |
-| 操作 | 元データへの移動 | `knowledge_sources` → videos・分析・会話／`knowledge_code_links` → ファイル | コードへの移動が未 |
+| 操作 | 元データへの移動 | `knowledge_sources` → videos・分析・会話／`knowledge_code_links` → GitHub の該当行 | 済み |
 
 ## 「入力画像の品質確認」を開いたときのたどり方
 

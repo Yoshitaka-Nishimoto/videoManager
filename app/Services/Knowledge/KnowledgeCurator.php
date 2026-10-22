@@ -2,6 +2,7 @@
 
 namespace App\Services\Knowledge;
 
+use App\Models\KnowledgeCodeLink;
 use App\Models\KnowledgeEdge;
 use App\Models\KnowledgeNode;
 use App\Models\KnowledgeRelationType;
@@ -187,6 +188,94 @@ class KnowledgeCurator
     }
 
     /**
+     * 設計判断の実装ノードを作り、「実装する」関係で設計判断につなぐ。人が作ったものなので確認済みとして登録する。
+     */
+    public function createImplementationFromDecision(KnowledgeNode $decision, string $title, ?string $description, User $user, ?string $reason = null): KnowledgeNode
+    {
+        if ($decision->node_type !== KnowledgeNode::TYPE_DECISION) {
+            throw new KnowledgeRuleViolation('実装を作れるのは、設計判断ノードからだけです。');
+        }
+
+        $this->ensureNotDeprecated($decision);
+
+        $relationType = KnowledgeRelationType::query()->where('key', KnowledgeRelationType::KEY_IMPLEMENTS)->first()
+            ?? throw new KnowledgeRuleViolation('関係の種類「実装する」がありません。KnowledgeRelationTypeSeeder を実行してください。');
+
+        return DB::transaction(function () use ($decision, $title, $description, $user, $reason, $relationType) {
+            $implementation = KnowledgeNode::query()->create([
+                'node_type' => KnowledgeNode::TYPE_IMPLEMENTATION,
+                'title' => $title,
+                'description' => $description,
+                'status' => KnowledgeNode::STATUS_CONFIRMED,
+                'proposed_by' => KnowledgeNode::PROPOSED_BY_HUMAN,
+                'confirmed_by' => $user->id,
+                'confirmed_at' => now(),
+            ]);
+
+            $this->recordRevision($implementation, KnowledgeRevision::ACTION_CREATE, null, $implementation->only(['node_type', 'title', 'description', 'status']), $user, $reason ?? "設計判断「{$decision->title}」から作成");
+            $this->addEdge($implementation, $relationType, $decision, $user, $reason);
+
+            return $implementation;
+        });
+    }
+
+    /**
+     * 実装ノードにコードの場所をつなぐ。人がつないだものなので確認済みとして登録する。
+     */
+    public function addCodeLink(KnowledgeNode $implementation, CodeLocation $location, User $user, ?string $note = null, ?string $reason = null): KnowledgeCodeLink
+    {
+        if ($implementation->node_type !== KnowledgeNode::TYPE_IMPLEMENTATION) {
+            throw new KnowledgeRuleViolation('コードの場所をつなげるのは、実装ノードだけです。');
+        }
+
+        $this->ensureNotDeprecated($implementation);
+
+        $exists = $implementation->codeLinks()
+            ->where('path', $location->path)
+            ->when($location->symbol === null, fn ($query) => $query->whereNull('symbol'), fn ($query) => $query->where('symbol', $location->symbol))
+            ->exists();
+
+        if ($exists) {
+            throw new KnowledgeRuleViolation('同じコードの場所がすでにつながっています（廃止済みを含む）。');
+        }
+
+        return DB::transaction(function () use ($implementation, $location, $user, $note, $reason) {
+            $link = $implementation->codeLinks()->create([
+                'path' => $location->path,
+                'symbol' => $location->symbol,
+                'start_line' => $location->startLine,
+                'end_line' => $location->endLine,
+                'commit_sha' => $location->commitSha,
+                'graphify_node_id' => $location->graphifyNodeId,
+                'note' => $note,
+                'status' => KnowledgeNode::STATUS_CONFIRMED,
+                'proposed_by' => KnowledgeNode::PROPOSED_BY_HUMAN,
+                'confirmed_by' => $user->id,
+                'confirmed_at' => now(),
+                'created_by' => $user->id,
+            ]);
+
+            $this->recordRevision($link, KnowledgeRevision::ACTION_CREATE, null, $link->only(['knowledge_node_id', 'path', 'symbol', 'start_line', 'end_line', 'status']), $user, $reason);
+
+            return $link;
+        });
+    }
+
+    public function confirmCodeLink(KnowledgeCodeLink $link, User $user, ?string $reason = null): void
+    {
+        if ($link->status === KnowledgeNode::STATUS_DEPRECATED) {
+            throw new KnowledgeRuleViolation('廃止されたコードの場所は採用できません。');
+        }
+
+        $this->changeStatus($link, KnowledgeNode::STATUS_CONFIRMED, KnowledgeRevision::ACTION_CONFIRM, $user, $reason);
+    }
+
+    public function deprecateCodeLink(KnowledgeCodeLink $link, User $user, ?string $reason = null): void
+    {
+        $this->changeStatus($link, KnowledgeNode::STATUS_DEPRECATED, KnowledgeRevision::ACTION_DEPRECATE, $user, $reason);
+    }
+
+    /**
      * $from から同じ種類の有効な関係をたどって $to に着けるか。
      */
     private function reachable(KnowledgeNode $from, KnowledgeNode $to, KnowledgeRelationType $relationType): bool
@@ -240,7 +329,7 @@ class KnowledgeCurator
         $this->recordRevision($edge, KnowledgeRevision::ACTION_MERGE, $before, $edge->only(['source_node_id', 'target_node_id', 'status']), $user, "「{$from->title}」を「{$into->title}」に統合");
     }
 
-    private function changeStatus(KnowledgeNode|KnowledgeEdge $model, string $status, string $action, User $user, ?string $reason): void
+    private function changeStatus(KnowledgeNode|KnowledgeEdge|KnowledgeCodeLink $model, string $status, string $action, User $user, ?string $reason): void
     {
         if ($model->status === $status) {
             return;

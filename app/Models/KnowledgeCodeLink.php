@@ -61,6 +61,20 @@ class KnowledgeCodeLink extends Model
     }
 
     /**
+     * GitHub で記録したときのコミットの該当行を開く URL。コミットがなければ既定のブランチで開く。
+     */
+    public function githubUrl(string $repositoryUrl): string
+    {
+        $lines = match (true) {
+            $this->start_line === null => '',
+            $this->end_line === null => "#L{$this->start_line}",
+            default => "#L{$this->start_line}-L{$this->end_line}",
+        };
+
+        return rtrim($repositoryUrl, '/').'/blob/'.($this->commit_sha ?? 'HEAD').'/'.$this->path.$lines;
+    }
+
+    /**
      * @return BelongsTo<KnowledgeNode, $this>
      */
     public function node(): BelongsTo

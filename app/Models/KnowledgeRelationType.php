@@ -25,6 +25,9 @@ class KnowledgeRelationType extends Model
     /** 設計判断 → 着想元とする → 概念 */
     public const KEY_INSPIRED_BY = 'inspired_by';
 
+    /** 実装 → 実装する → 概念・設計判断 */
+    public const KEY_IMPLEMENTS = 'implements';
+
     /** 制作した動画 → 実現する → 設計判断 */
     public const KEY_REALIZES = 'realizes';
 

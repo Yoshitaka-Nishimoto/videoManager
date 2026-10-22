@@ -43,7 +43,7 @@ class KnowledgeRelationTypeSeeder extends Seeder
                 'allowed_target_types' => [KnowledgeNode::TYPE_CONCEPT, KnowledgeNode::TYPE_DECISION],
             ],
             [
-                'key' => 'implements',
+                'key' => KnowledgeRelationType::KEY_IMPLEMENTS,
                 'label' => '実装する',
                 'inverse_label' => '実装される',
                 'description' => '実装ノードが、どの概念・設計判断を実装しているかを示す。',

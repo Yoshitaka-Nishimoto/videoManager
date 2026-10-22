@@ -1,11 +1,13 @@
 <?php
 
+use App\Models\KnowledgeCodeLink;
 use App\Models\KnowledgeEdge;
 use App\Models\KnowledgeNode;
 use App\Models\KnowledgeRelationType;
 use App\Models\KnowledgeRevision;
 use App\Models\KnowledgeSource;
 use App\Models\Video;
+use App\Services\Knowledge\CodeLocator;
 use App\Services\Knowledge\KnowledgeCurator;
 use App\Services\Knowledge\KnowledgeRuleViolation;
 use Illuminate\Database\Eloquent\Collection;
@@ -39,6 +41,20 @@ new #[Title('知識の詳細')] class extends Component
     public string $decisionTitle = '';
 
     public string $decisionDescription = '';
+
+    public string $implementationTitle = '';
+
+    public string $implementationDescription = '';
+
+    public string $codePath = '';
+
+    public string $codeSymbol = '';
+
+    public string $codeStartLine = '';
+
+    public string $codeEndLine = '';
+
+    public string $codeNote = '';
 
     public function confirm(KnowledgeCurator $curator): void
     {
@@ -127,6 +143,153 @@ new #[Title('知識の詳細')] class extends Component
             session()->flash('status', "設計判断「{$decision->title}」を作り、「{$this->node->title}」につなぎました。");
             $this->redirectRoute('knowledge.show', $decision, navigate: true);
         });
+    }
+
+    public function createImplementation(KnowledgeCurator $curator): void
+    {
+        $this->validate([
+            'implementationTitle' => 'required|string|max:255',
+            'implementationDescription' => 'nullable|string|max:5000',
+        ], attributes: ['implementationTitle' => '実装の名称', 'implementationDescription' => '実装の説明']);
+
+        $this->run(function () use ($curator) {
+            $implementation = $curator->createImplementationFromDecision($this->node, $this->implementationTitle, $this->implementationDescription ?: null, auth()->user(), $this->reasonOrNull());
+
+            session()->flash('status', "実装「{$implementation->title}」を作り、「{$this->node->title}」につなぎました。続けてコードの場所をつないでください。");
+            $this->redirectRoute('knowledge.show', $implementation, navigate: true);
+        });
+    }
+
+    public function chooseCodePath(string $path): void
+    {
+        $this->codePath = $path;
+        $this->codeSymbol = '';
+        unset($this->pathCandidates, $this->symbolCandidates);
+    }
+
+    public function addCodeLink(KnowledgeCurator $curator, CodeLocator $locator): void
+    {
+        $this->validate([
+            'codePath' => 'required|string|max:255',
+            'codeSymbol' => 'nullable|string|max:255',
+            'codeStartLine' => 'nullable|integer|min:1',
+            'codeEndLine' => 'nullable|integer|min:1',
+            'codeNote' => 'nullable|string|max:2000',
+        ], attributes: ['codePath' => 'ファイル', 'codeSymbol' => 'クラス・メソッド', 'codeStartLine' => '開始行', 'codeEndLine' => '終了行', 'codeNote' => '補足']);
+
+        $this->run(function () use ($curator, $locator) {
+            $location = $locator->locate(
+                $this->codePath,
+                $this->codeSymbol,
+                $this->codeStartLine === '' ? null : (int) $this->codeStartLine,
+                $this->codeEndLine === '' ? null : (int) $this->codeEndLine,
+            );
+            $curator->addCodeLink($this->node, $location, auth()->user(), trim($this->codeNote) ?: null, $this->reasonOrNull());
+            $this->reset('codePath', 'codeSymbol', 'codeStartLine', 'codeEndLine', 'codeNote');
+        });
+    }
+
+    public function confirmCodeLink(KnowledgeCodeLink $link, KnowledgeCurator $curator): void
+    {
+        $this->ensureOwnCodeLink($link);
+        $this->run(fn () => $curator->confirmCodeLink($link, auth()->user(), $this->reasonOrNull()));
+    }
+
+    public function deprecateCodeLink(KnowledgeCodeLink $link, KnowledgeCurator $curator): void
+    {
+        $this->ensureOwnCodeLink($link);
+        $this->run(fn () => $curator->deprecateCodeLink($link, auth()->user(), $this->reasonOrNull()));
+    }
+
+    /**
+     * 実装ノードにつながっているコードの場所（廃止済みを含む）。
+     *
+     * @return Collection<int, KnowledgeCodeLink>
+     */
+    #[Computed]
+    public function codeLinks(): Collection
+    {
+        return $this->node->codeLinks()
+            ->orderByRaw("case status when 'candidate' then 0 when 'confirmed' then 1 else 2 end")
+            ->orderBy('path')
+            ->orderBy('start_line')
+            ->get();
+    }
+
+    /**
+     * 概念・設計判断を実装している実装ノードと、そのコードの場所。
+     * 概念の場合は、その概念を着想元とする設計判断の実装も含める（概念 → 設計判断 → 実装 → コード）。
+     *
+     * @return Collection<int, KnowledgeNode>
+     */
+    #[Computed]
+    public function implementations(): Collection
+    {
+        if (! in_array($this->node->node_type, [KnowledgeNode::TYPE_CONCEPT, KnowledgeNode::TYPE_DECISION], true)) {
+            return new Collection;
+        }
+
+        $activeEdges = fn (string $key) => KnowledgeEdge::query()
+            ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
+            ->whereRelation('relationType', 'key', $key);
+
+        $targets = [$this->node->id];
+
+        if ($this->node->node_type === KnowledgeNode::TYPE_CONCEPT) {
+            $targets = [...$targets, ...$activeEdges(KnowledgeRelationType::KEY_INSPIRED_BY)->where('target_node_id', $this->node->id)->pluck('source_node_id')];
+        }
+
+        return KnowledgeNode::query()
+            ->whereIn('id', $activeEdges(KnowledgeRelationType::KEY_IMPLEMENTS)->whereIn('target_node_id', $targets)->select('source_node_id'))
+            ->where('node_type', KnowledgeNode::TYPE_IMPLEMENTATION)
+            ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
+            ->with(['codeLinks' => fn ($query) => $query->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)->orderBy('path')->orderBy('start_line')])
+            ->orderBy('title')
+            ->get();
+    }
+
+    #[Computed]
+    public function githubRepository(): ?string
+    {
+        return app(CodeLocator::class)->githubRepositoryUrl();
+    }
+
+    /**
+     * 入力中のパスに合うファイルの候補。実在するファイルを入力し終えたら出さない。
+     *
+     * @return list<string>
+     */
+    #[Computed]
+    public function pathCandidates(): array
+    {
+        $locator = app(CodeLocator::class);
+
+        return $locator->normalize($this->codePath) !== null ? [] : $locator->suggestPaths($this->codePath);
+    }
+
+    /**
+     * 選んだファイルにあるクラス・メソッド・関数。
+     *
+     * @return list<array{symbol: string, line: int}>
+     */
+    #[Computed]
+    public function symbolCandidates(): array
+    {
+        return app(CodeLocator::class)->symbolsIn($this->codePath);
+    }
+
+    #[Computed]
+    public function canCreateImplementation(): bool
+    {
+        return $this->node->node_type === KnowledgeNode::TYPE_DECISION
+            && $this->node->status !== KnowledgeNode::STATUS_DEPRECATED;
+    }
+
+    #[Computed]
+    public function canLinkCode(): bool
+    {
+        return $this->node->node_type === KnowledgeNode::TYPE_IMPLEMENTATION
+            && $this->node->status !== KnowledgeNode::STATUS_DEPRECATED;
     }
 
     /**
@@ -241,6 +404,11 @@ new #[Title('知識の詳細')] class extends Component
         abort_unless(in_array($this->node->id, [$edge->source_node_id, $edge->target_node_id], true), 404);
     }
 
+    private function ensureOwnCodeLink(KnowledgeCodeLink $link): void
+    {
+        abort_unless($link->knowledge_node_id === $this->node->id, 404);
+    }
+
     private function reasonOrNull(): ?string
     {
         return trim($this->reason) === '' ? null : trim($this->reason);
@@ -256,7 +424,7 @@ new #[Title('知識の詳細')] class extends Component
         }
 
         $this->node->refresh();
-        unset($this->sources, $this->edges, $this->revisions, $this->canMerge, $this->canCreateDecision);
+        unset($this->sources, $this->edges, $this->revisions, $this->canMerge, $this->canCreateDecision, $this->canCreateImplementation, $this->canLinkCode, $this->codeLinks, $this->implementations);
     }
 };
 ?>
@@ -389,6 +557,53 @@ new #[Title('知識の詳細')] class extends Component
                 <a href="{{ route('productions.create', ['decision' => $node->id]) }}" wire:navigate class="{{ $card }} block text-sm font-semibold hover:underline">この設計判断から制作を作る →</a>
             @endif
 
+            @if ($this->canCreateImplementation)
+                <details class="{{ $card }}">
+                    <summary class="cursor-pointer text-sm font-semibold">この設計判断の実装を作る</summary>
+                    <form wire:submit="createImplementation" class="mt-3 space-y-2 text-sm">
+                        <p class="{{ $muted }}">新しい実装 →「実装する」→「{{ $node->title }}」の関係で登録します。作ったあと、実装の画面でコードの場所をつなぎます。</p>
+                        <input type="text" wire:model="implementationTitle" placeholder="実装の名称（例：Runway の失敗防止：入力画像の検査）" aria-label="実装の名称" class="{{ $input }}">
+                        @error('implementationTitle') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                        <textarea wire:model="implementationDescription" rows="3" placeholder="説明（任意）：どの機能で、どう実現したか" aria-label="実装の説明" class="{{ $input }}"></textarea>
+                        @error('implementationDescription') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                        <button type="submit" class="{{ $button }}">作成</button>
+                    </form>
+                </details>
+            @endif
+
+            @if ($this->canLinkCode)
+                <details class="{{ $card }}" @if ($this->codeLinks->isEmpty()) open @endif>
+                    <summary class="cursor-pointer text-sm font-semibold">コードの場所をつなぐ</summary>
+                    <form wire:submit="addCodeLink" class="mt-3 space-y-2 text-sm">
+                        <input type="search" wire:model.live.debounce.300ms="codePath" placeholder="ファイルをパスの一部で検索（例：Runway）" aria-label="ファイル" class="{{ $input }} font-mono">
+                        @error('codePath') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                        @foreach ($this->pathCandidates as $candidate)
+                            <button type="button" wire:key="path-{{ $candidate }}" wire:click="chooseCodePath(@js($candidate))" class="block w-full break-all text-left font-mono text-xs hover:underline">{{ $candidate }}</button>
+                        @endforeach
+
+                        <input type="text" wire:model="codeSymbol" list="code-symbols" placeholder="クラス・メソッド（任意。空ならファイル全体）" aria-label="クラス・メソッド" class="{{ $input }} font-mono">
+                        <datalist id="code-symbols">
+                            @foreach ($this->symbolCandidates as $candidate)
+                                <option wire:key="symbol-{{ $candidate['symbol'] }}-{{ $candidate['line'] }}" value="{{ $candidate['symbol'] }}">L{{ $candidate['line'] }}</option>
+                            @endforeach
+                        </datalist>
+                        @error('codeSymbol') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+
+                        <div class="flex gap-2">
+                            <input type="number" min="1" wire:model="codeStartLine" placeholder="開始行（任意）" aria-label="開始行" class="{{ $input }}">
+                            <input type="number" min="1" wire:model="codeEndLine" placeholder="終了行（任意）" aria-label="終了行" class="{{ $input }}">
+                        </div>
+                        @error('codeStartLine') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                        @error('codeEndLine') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                        <p class="text-xs {{ $muted }}">開始行を空にしてクラス・メソッドを選ぶと、その行を自動で入れます。登録したときのコミットも記録します。</p>
+
+                        <textarea wire:model="codeNote" rows="2" placeholder="補足（任意）：このコードのどこが設計判断に当たるか" aria-label="補足" class="{{ $input }}"></textarea>
+                        @error('codeNote') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                        <button type="submit" class="{{ $button }}">つなぐ</button>
+                    </form>
+                </details>
+            @endif
+
             @if ($this->canCreateDecision)
                 <details class="{{ $card }}">
                     <summary class="cursor-pointer text-sm font-semibold">この概念から設計判断を作る</summary>
@@ -437,6 +652,43 @@ new #[Title('知識の詳細')] class extends Component
 
         {{-- 右側：関連するノード --}}
         <section class="space-y-3 lg:order-3">
+            @if ($node->node_type === KnowledgeNode::TYPE_IMPLEMENTATION)
+                <h2 class="font-semibold">コードの場所</h2>
+                @forelse ($this->codeLinks as $link)
+                    <div wire:key="code-link-{{ $link->id }}" class="{{ $card }} space-y-2 text-sm">
+                        <x-knowledge.code-link :link="$link" :repository="$this->githubRepository" />
+                        <div class="flex flex-wrap items-center gap-2">
+                            <x-knowledge.status-badge :status="$link->status" />
+                            @if ($link->status === KnowledgeNode::STATUS_CANDIDATE)
+                                <button type="button" wire:click="confirmCodeLink({{ $link->id }})" class="rounded-sm border border-green-700 px-2 py-0.5 text-xs text-green-800 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-950">採用</button>
+                            @endif
+                            @if ($link->status !== KnowledgeNode::STATUS_DEPRECATED)
+                                <button type="button" wire:click="deprecateCodeLink({{ $link->id }})" class="rounded-sm border border-[#19140035] px-2 py-0.5 text-xs hover:bg-[#f0f0ec] dark:border-[#3E3E3A] dark:hover:bg-[#1f1f1e]">廃止</button>
+                            @endif
+                        </div>
+                    </div>
+                @empty
+                    <p class="text-sm {{ $muted }}">コードの場所はまだつながっていません。</p>
+                @endforelse
+            @elseif (in_array($node->node_type, [KnowledgeNode::TYPE_CONCEPT, KnowledgeNode::TYPE_DECISION], true))
+                <h2 class="font-semibold">実装とコード</h2>
+                @forelse ($this->implementations as $implementation)
+                    <div wire:key="implementation-{{ $implementation->id }}" class="{{ $card }} space-y-2 text-sm">
+                        <a href="{{ route('knowledge.show', $implementation) }}" wire:navigate class="block font-medium hover:underline">
+                            <span class="text-xs {{ $muted }}">実装</span>
+                            {{ $implementation->title }}
+                        </a>
+                        @forelse ($implementation->codeLinks as $link)
+                            <x-knowledge.code-link wire:key="implementation-link-{{ $link->id }}" :link="$link" :repository="$this->githubRepository" class="border-t border-[#19140015] pt-2 dark:border-[#3E3E3A]" />
+                        @empty
+                            <p class="text-xs {{ $muted }}">コードの場所はまだつながっていません。</p>
+                        @endforelse
+                    </div>
+                @empty
+                    <p class="text-sm {{ $muted }}">実装はまだありません。</p>
+                @endforelse
+            @endif
+
             <h2 class="font-semibold">関係</h2>
             @forelse ($this->edges as $edge)
                 @php($outgoing = $edge->source_node_id === $node->id)

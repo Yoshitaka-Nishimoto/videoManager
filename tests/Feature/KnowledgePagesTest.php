@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\KnowledgeCodeLink;
 use App\Models\KnowledgeEdge;
 use App\Models\KnowledgeNode;
 use App\Models\KnowledgeRelationType;
@@ -10,10 +11,12 @@ use App\Models\User;
 use Database\Seeders\KnowledgeRelationTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Tests\Feature\Concerns\BuildsFakeRepository;
 use Tests\TestCase;
 
 class KnowledgePagesTest extends TestCase
 {
+    use BuildsFakeRepository;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -200,5 +203,102 @@ class KnowledgePagesTest extends TestCase
             ->assertNotFound();
 
         $this->assertSame(KnowledgeNode::STATUS_CANDIDATE, $unrelated->refresh()->status);
+    }
+
+    public function test_an_implementation_can_be_created_from_a_decision_page(): void
+    {
+        $decision = KnowledgeNode::factory()->decision()->create(['title' => '生成前に入力画像を検査する']);
+
+        Livewire::test('pages::knowledge.show', ['node' => $decision])
+            ->assertSee('この設計判断の実装を作る')
+            ->call('createImplementation')
+            ->assertHasErrors(['implementationTitle' => 'required'])
+            ->set('implementationTitle', 'Runway の失敗防止：入力画像の検査')
+            ->call('createImplementation')
+            ->assertRedirect(route('knowledge.show', KnowledgeNode::where('node_type', KnowledgeNode::TYPE_IMPLEMENTATION)->sole()));
+
+        $this->get(route('knowledge.show', KnowledgeNode::factory()->create()))->assertOk()->assertDontSee('この設計判断の実装を作る');
+    }
+
+    public function test_code_is_linked_by_choosing_a_suggested_file_and_symbol(): void
+    {
+        $this->buildFakeRepository();
+        $implementation = KnowledgeNode::factory()->implementation()->create();
+
+        Livewire::test('pages::knowledge.show', ['node' => $implementation])
+            ->assertSee('コードの場所をつなぐ')
+            ->set('codePath', 'checker')
+            ->assertSee('app/Services/Runway/InputImageChecker.php')
+            ->call('chooseCodePath', 'app/Services/Runway/InputImageChecker.php')
+            ->assertSee('InputImageChecker::check')
+            ->set('codeSymbol', 'InputImageChecker::check')
+            ->set('codeNote', '解像度を確認している')
+            ->call('addCodeLink')
+            ->assertHasNoErrors()
+            ->assertSet('codePath', '')
+            ->assertSee('https://github.com/owner/repo/blob/'.self::FAKE_COMMIT.'/app/Services/Runway/InputImageChecker.php#L7', false);
+
+        $link = $implementation->codeLinks()->sole();
+        $this->assertSame([7, self::FAKE_COMMIT], [$link->start_line, $link->commit_sha]);
+    }
+
+    public function test_a_file_outside_the_repository_folders_is_shown_as_a_message(): void
+    {
+        $this->buildFakeRepository();
+        $implementation = KnowledgeNode::factory()->implementation()->create();
+
+        Livewire::test('pages::knowledge.show', ['node' => $implementation])
+            ->set('codePath', 'vendor/laravel/Checker.php')
+            ->call('addCodeLink')
+            ->assertHasErrors('action');
+
+        $this->assertSame(0, KnowledgeCodeLink::count());
+    }
+
+    public function test_a_concept_page_shows_the_code_of_implementations_of_its_decisions(): void
+    {
+        $concept = KnowledgeNode::factory()->create(['title' => '入力画像の品質確認']);
+        $decision = KnowledgeNode::factory()->decision()->create();
+        $implementation = KnowledgeNode::factory()->implementation()->create(['title' => 'Runway の失敗防止：入力画像の検査']);
+        $retired = KnowledgeNode::factory()->implementation()->create(['title' => '廃止した実装', 'status' => KnowledgeNode::STATUS_DEPRECATED]);
+        KnowledgeEdge::factory()->create(['source_node_id' => $decision->id, 'target_node_id' => $concept->id, 'relation_type_id' => $this->relation(KnowledgeRelationType::KEY_INSPIRED_BY)]);
+        KnowledgeEdge::factory()->create(['source_node_id' => $implementation->id, 'target_node_id' => $decision->id, 'relation_type_id' => $this->relation(KnowledgeRelationType::KEY_IMPLEMENTS)]);
+        KnowledgeEdge::factory()->create(['source_node_id' => $retired->id, 'target_node_id' => $decision->id, 'relation_type_id' => $this->relation(KnowledgeRelationType::KEY_IMPLEMENTS)]);
+        KnowledgeCodeLink::factory()->for($implementation, 'node')->create(['path' => 'app/Services/Runway/InputImageChecker.php', 'symbol' => 'InputImageChecker::check']);
+        KnowledgeCodeLink::factory()->for($implementation, 'node')->create(['path' => 'app/Old.php', 'status' => KnowledgeNode::STATUS_DEPRECATED]);
+
+        foreach ([$concept, $decision] as $node) {
+            $this->get(route('knowledge.show', $node))
+                ->assertOk()
+                ->assertSee('実装とコード')
+                ->assertSee('Runway の失敗防止：入力画像の検査')
+                ->assertSee('InputImageChecker::check')
+                ->assertDontSee('app/Old.php');
+
+            // 廃止した実装は「関係」の一覧には残るが、「実装とコード」には出さない。
+            $implementations = Livewire::test('pages::knowledge.show', ['node' => $node])->instance()->implementations;
+            $this->assertSame(['Runway の失敗防止：入力画像の検査'], $implementations->pluck('title')->all());
+        }
+    }
+
+    public function test_code_links_are_adopted_or_deprecated_only_from_their_implementation(): void
+    {
+        $link = KnowledgeCodeLink::factory()->create();
+        $other = KnowledgeNode::factory()->implementation()->create();
+
+        Livewire::test('pages::knowledge.show', ['node' => $other])
+            ->call('deprecateCodeLink', $link->id)
+            ->assertNotFound();
+
+        Livewire::test('pages::knowledge.show', ['node' => $link->node])
+            ->call('confirmCodeLink', $link->id)
+            ->assertSee('確認済み');
+
+        $this->assertSame(KnowledgeNode::STATUS_CONFIRMED, $link->refresh()->status);
+    }
+
+    private function relation(string $key): int
+    {
+        return KnowledgeRelationType::where('key', $key)->value('id');
     }
 }

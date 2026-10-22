@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\KnowledgeCodeLink;
 use App\Models\KnowledgeEdge;
 use App\Models\KnowledgeNode;
 use App\Models\KnowledgeRelationType;
 use App\Models\KnowledgeRevision;
 use App\Models\KnowledgeSource;
 use App\Models\User;
+use App\Services\Knowledge\CodeLocation;
 use App\Services\Knowledge\KnowledgeCurator;
 use App\Services\Knowledge\KnowledgeRuleViolation;
 use Database\Seeders\KnowledgeRelationTypeSeeder;
@@ -224,6 +226,103 @@ class KnowledgeCuratorTest extends TestCase
         }
 
         $this->assertSame(1, KnowledgeNode::where('node_type', KnowledgeNode::TYPE_DECISION)->count());
+    }
+
+    public function test_an_implementation_created_from_a_decision_implements_it(): void
+    {
+        $decision = KnowledgeNode::factory()->decision()->create(['title' => '生成前に入力画像を検査する']);
+
+        $implementation = $this->curator->createImplementationFromDecision($decision, 'Runway の失敗防止：入力画像の検査', null, $this->user);
+
+        $this->assertSame(KnowledgeNode::TYPE_IMPLEMENTATION, $implementation->node_type);
+        $this->assertSame(KnowledgeNode::STATUS_CONFIRMED, $implementation->status);
+        $this->assertSame($this->user->id, $implementation->confirmed_by);
+
+        $edge = $implementation->outgoingEdges()->sole();
+        $this->assertTrue($edge->targetNode->is($decision));
+        $this->assertSame(KnowledgeRelationType::KEY_IMPLEMENTS, $edge->relationType->key);
+        $this->assertSame('設計判断「生成前に入力画像を検査する」から作成', $implementation->revisions()->sole()->reason);
+    }
+
+    public function test_an_implementation_can_only_be_created_from_an_active_decision(): void
+    {
+        $concept = KnowledgeNode::factory()->create();
+        $deprecated = KnowledgeNode::factory()->decision()->create(['status' => KnowledgeNode::STATUS_DEPRECATED]);
+
+        foreach ([$concept, $deprecated] as $node) {
+            try {
+                $this->curator->createImplementationFromDecision($node, '新しい実装', null, $this->user);
+                $this->fail('設計判断以外・廃止済みの設計判断から実装が作れてしまいました。');
+            } catch (KnowledgeRuleViolation) {
+                // 期待どおり
+            }
+        }
+
+        $this->assertSame(0, KnowledgeNode::where('node_type', KnowledgeNode::TYPE_IMPLEMENTATION)->count());
+    }
+
+    public function test_a_code_location_is_linked_as_confirmed_with_its_history(): void
+    {
+        $implementation = KnowledgeNode::factory()->implementation()->create();
+        $location = new CodeLocation('app/Services/Runway/InputImageChecker.php', 'InputImageChecker::check', 7, 10, str_repeat('a', 40), 'graph_node');
+
+        $link = $this->curator->addCodeLink($implementation, $location, $this->user, '解像度を確認している', '実装を確認した');
+
+        $this->assertSame(
+            ['app/Services/Runway/InputImageChecker.php', 'InputImageChecker::check', 7, 10, str_repeat('a', 40), 'graph_node', '解像度を確認している'],
+            [$link->path, $link->symbol, $link->start_line, $link->end_line, $link->commit_sha, $link->graphify_node_id, $link->note],
+        );
+        $this->assertSame(KnowledgeNode::STATUS_CONFIRMED, $link->status);
+        $this->assertSame($this->user->id, $link->created_by);
+
+        $revision = $link->revisions()->sole();
+        $this->assertSame(KnowledgeRevision::ACTION_CREATE, $revision->action);
+        $this->assertSame('実装を確認した', $revision->reason);
+    }
+
+    public function test_code_can_only_be_linked_to_an_active_implementation(): void
+    {
+        $location = new CodeLocation('app/Models/KnowledgeNode.php');
+
+        foreach ([KnowledgeNode::factory()->decision()->create(), KnowledgeNode::factory()->implementation()->create(['status' => KnowledgeNode::STATUS_DEPRECATED])] as $node) {
+            try {
+                $this->curator->addCodeLink($node, $location, $this->user);
+                $this->fail('実装以外・廃止済みの実装にコードがつながってしまいました。');
+            } catch (KnowledgeRuleViolation) {
+                // 期待どおり
+            }
+        }
+
+        $this->assertSame(0, KnowledgeCodeLink::count());
+    }
+
+    public function test_the_same_code_location_cannot_be_linked_twice_even_after_deprecation(): void
+    {
+        $implementation = KnowledgeNode::factory()->implementation()->create();
+        $fileLink = $this->curator->addCodeLink($implementation, new CodeLocation('app/Models/KnowledgeNode.php'), $this->user);
+        $this->curator->addCodeLink($implementation, new CodeLocation('app/Models/KnowledgeNode.php', 'KnowledgeNode::codeLinks'), $this->user);
+        $this->curator->deprecateCodeLink($fileLink, $this->user);
+
+        $this->expectException(KnowledgeRuleViolation::class);
+
+        $this->curator->addCodeLink($implementation, new CodeLocation('app/Models/KnowledgeNode.php'), $this->user);
+    }
+
+    public function test_a_candidate_code_location_can_be_confirmed_but_not_after_deprecation(): void
+    {
+        $link = KnowledgeCodeLink::factory()->create();
+
+        $this->curator->confirmCodeLink($link, $this->user, 'コードを読んで確認した');
+        $this->assertSame(KnowledgeNode::STATUS_CONFIRMED, $link->refresh()->status);
+        $this->assertSame($this->user->id, $link->confirmed_by);
+
+        $this->curator->deprecateCodeLink($link, $this->user);
+        $this->assertSame(KnowledgeNode::STATUS_DEPRECATED, $link->refresh()->status);
+        $this->assertSame([KnowledgeRevision::ACTION_CONFIRM, KnowledgeRevision::ACTION_DEPRECATE], $link->revisions()->orderBy('id')->pluck('action')->all());
+
+        $this->expectException(KnowledgeRuleViolation::class);
+
+        $this->curator->confirmCodeLink($link, $this->user);
     }
 
     private function relationType(string $key): KnowledgeRelationType
