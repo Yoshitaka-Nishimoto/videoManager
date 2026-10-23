@@ -71,6 +71,26 @@ design.md の「画面は一点から周囲を見る形にする」を実現す�
 - 変更履歴は既存の `knowledge_revisions`（revisable_type = 対応）に残す。
 - **照合**：`graphify update .` の後に graph.json の `source_file`・`label` と照合し、見つからない対応に `missing_since` を入れる。行の削除や自動修正はしない（人が直す）。
 
+## Graphify の画面で知識をたどる（知識入りの graph.html）
+
+DB の知識を Graphify の graph.json に加え、Graphify の画面（graph.html）で 概念 → 設計判断 → 実装 → コード とたどれるようにする。
+
+```bash
+bin/knowledge-graph          # DB の知識を加えて graph.html を作る
+bin/knowledge-graph update   # 先に graphify update . でコードのグラフも作り直す
+```
+
+- 出力：`graphify-out/knowledge/graphify-out/graph.html`。元の `graphify-out/graph.html` は変えない。
+- 処理：`php artisan knowledge:graph`（Sail のコンテナ）で graph.json を書き出し、`graphify cluster-only graphify-out/knowledge --no-label`（WSL）で graph.html を作る。AI は使わない。
+- 知識のノードは名称の先頭に `[概念]`・`[設計判断]`・`[実装]` などを付ける。Source には知識の画面の URL を入れる（graph.html の Source 欄は文字だけなので、コピーして開く）。
+- エッジの関係名：知識のエッジは `knowledge_<関係キー>`（例：`knowledge_implements`）、実装 → コードは `knowledge_implemented_in`。確認済みは実線、候補は点線。
+- 廃止済みのノード・エッジ・コードの対応は含めない。
+- 記録した Graphify のノード ID が今の graph.json にないときは、同じファイル・同じシンボルのノードにつなぐ。見つからなければ警告を出してつながない。
+- graphify は読み込むときにノード ID を Source から付け直す（例：`knowledge_172` → `http_localhost_knowledge_172`）。エッジも一緒に付け直されるので、つながりは変わらない。
+- DB の知識を変えたら実行し直す（自動では更新されない）。
+
+逆に、graph.html でコードのノードの Source（ファイルのパス）を知識一覧の検索欄に貼ると、そのファイルにつながる実装ノードが出る。パス（`/` を含む語）や Graphify のノード ID で探すときは、状態で絞らずに表示する。
+
 ## knowledge_edges.replaced_by_id（誤った関係の修正）【列の追加】
 
 | 列 | 型 | 内容 |

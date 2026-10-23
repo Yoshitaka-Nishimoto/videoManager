@@ -297,6 +297,24 @@ class KnowledgePagesTest extends TestCase
         $this->assertSame(KnowledgeNode::STATUS_CONFIRMED, $link->refresh()->status);
     }
 
+    public function test_implementations_are_found_by_the_path_of_their_code_regardless_of_status(): void
+    {
+        $implementation = KnowledgeNode::factory()->implementation()->confirmed()->create(['title' => 'AI 呼び出しのモデル選択']);
+        KnowledgeCodeLink::factory()->for($implementation, 'node')->create(['path' => 'app/Services/Ai/GeminiModels.php', 'symbol' => 'GeminiModels::attempt', 'graphify_node_id' => 'app_services_ai_geminimodels_geminimodels_attempt']);
+        $retired = KnowledgeNode::factory()->implementation()->create(['title' => '古い実装']);
+        KnowledgeCodeLink::factory()->for($retired, 'node')->create(['path' => 'app/Services/Ai/GeminiModels.php', 'status' => KnowledgeNode::STATUS_DEPRECATED]);
+
+        Livewire::test('pages::knowledge.index')
+            ->set('q', 'Services/Ai/GeminiModels')
+            ->assertSee('状態にかかわらず表示しています')
+            ->assertSee('AI 呼び出しのモデル選択')
+            ->assertSee('コード：app/Services/Ai/GeminiModels.php GeminiModels::attempt')
+            ->assertDontSee('古い実装')
+            ->set('q', 'app_services_ai_geminimodels_geminimodels_attempt')
+            ->set('status', '')
+            ->assertSee('AI 呼び出しのモデル選択');
+    }
+
     private function relation(string $key): int
     {
         return KnowledgeRelationType::where('key', $key)->value('id');

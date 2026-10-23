@@ -46,10 +46,17 @@ new #[Title('知識')] class extends Component
     #[Computed]
     public function nodes(): LengthAwarePaginator
     {
+        $codeLinkMatches = fn ($query) => $query
+            ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
+            ->where(fn ($q) => $q->whereLike('path', '%'.trim($this->q).'%')->orWhere('graphify_node_id', trim($this->q)));
+
         return KnowledgeNode::query()
-            ->when($this->status !== '', fn ($query) => $query->where('status', $this->status))
+            ->when($this->status !== '' && ! $this->searchingCode(), fn ($query) => $query->where('status', $this->status))
             ->when($this->type !== '', fn ($query) => $query->where('node_type', $this->type))
-            ->when($this->q !== '', fn ($query) => $query->whereLike('title', '%'.$this->q.'%'))
+            ->when(trim($this->q) !== '', fn ($query) => $query->where(fn ($q) => $q
+                ->whereLike('title', '%'.trim($this->q).'%')
+                ->orWhereHas('codeLinks', $codeLinkMatches)))
+            ->when(trim($this->q) !== '', fn ($query) => $query->with(['codeLinks' => $codeLinkMatches]))
             ->withCount(['outgoingEdges', 'incomingEdges', 'sources'])
             ->orderByRaw("case status when 'candidate' then 0 when 'confirmed' then 1 else 2 end")
             ->latest('id')
@@ -68,6 +75,14 @@ new #[Title('知識')] class extends Component
             ->groupBy('status')
             ->pluck('total', 'status')
             ->all();
+    }
+
+    /**
+     * ファイルのパス（graph.html の Source など）で探しているか。実装ノードは確認済みが多いので、状態で絞らずに探す。
+     */
+    public function searchingCode(): bool
+    {
+        return str_contains(trim($this->q), '/');
     }
 
     private function run(callable $action): void
@@ -114,8 +129,8 @@ new #[Title('知識')] class extends Component
         <input
             type="search"
             wire:model.live.debounce.300ms="q"
-            placeholder="名称で検索"
-            aria-label="名称で検索"
+            placeholder="名称・ファイルのパスで検索"
+            aria-label="名称・ファイルのパスで検索"
             class="w-full rounded-sm border border-[#19140035] bg-white px-3 py-1 sm:w-56 dark:border-[#3E3E3A] dark:bg-[#161615]"
         >
     </div>
@@ -123,6 +138,10 @@ new #[Title('知識')] class extends Component
     @error('action')
         <p class="text-sm text-red-600">{{ $message }}</p>
     @enderror
+
+    @if ($this->searchingCode())
+        <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">ファイルのパスで検索しているため、状態にかかわらず表示しています。</p>
+    @endif
 
     @if ($this->nodes->isEmpty())
         <p class="text-sm text-[#706f6c] dark:text-[#A1A09A]">該当するノードはありません。</p>
@@ -134,6 +153,13 @@ new #[Title('知識')] class extends Component
                     <a href="{{ route('knowledge.show', $node) }}" wire:navigate class="min-w-0 flex-1 truncate font-medium hover:underline">{{ $node->title }}</a>
                     <x-knowledge.status-badge :status="$node->status" />
                     <span class="text-xs text-[#706f6c] dark:text-[#A1A09A]">関係 {{ $node->outgoing_edges_count + $node->incoming_edges_count }} · 出典 {{ $node->sources_count }}</span>
+                    @if ($node->relationLoaded('codeLinks') && $node->codeLinks->isNotEmpty())
+                        <span class="basis-full pl-[4.75rem] font-mono text-xs text-[#706f6c] dark:text-[#A1A09A]">
+                            @foreach ($node->codeLinks as $link)
+                                <span wire:key="node-{{ $node->id }}-link-{{ $link->id }}" class="block break-all">コード：{{ $link->path }}{{ $link->symbol ? " {$link->symbol}" : '' }}</span>
+                            @endforeach
+                        </span>
+                    @endif
                     @if ($node->status === KnowledgeNode::STATUS_CANDIDATE)
                         <span class="flex gap-2">
                             <button type="button" wire:click="confirm({{ $node->id }})" class="rounded-sm border border-green-700 px-2 py-0.5 text-xs text-green-800 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-950">採用</button>

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# 知識入りの graph.html を作る（WSL のプロジェクトのルートで実行する）。
+#
+#   bin/knowledge-graph          DB の知識を graph.json に加え、graph.html を作る
+#   bin/knowledge-graph update   先に graphify update . でコードのグラフを作り直してから作る
+#
+# 出力：graphify-out/knowledge/graphify-out/graph.html（元の graphify-out/graph.html は変えない）。
+# AI は使わない（graphify cluster-only --no-label）。DB の知識を変えたら実行し直す。
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+# compose.yaml が参照する値。未設定だと docker compose が警告を出す。
+export WWWUSER="${WWWUSER:-$(id -u)}"
+export WWWGROUP="${WWWGROUP:-$(id -g)}"
+
+tty_flag=()
+[ -t 0 ] || tty_flag=(-T)
+
+if ! command -v graphify >/dev/null; then
+    echo 'graphify がありません。public_docs/install.md の手順で入れてください。' >&2
+    exit 1
+fi
+
+case "${1:-}" in
+    update)
+        graphify update .
+        ;;
+    '')
+        ;;
+    *)
+        sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+        exit 1
+        ;;
+esac
+
+docker compose exec "${tty_flag[@]}" -u sail laravel.test php artisan knowledge:graph
+graphify cluster-only graphify-out/knowledge --no-label
+
+echo "知識入りの graph.html を作りました：graphify-out/knowledge/graphify-out/graph.html"
