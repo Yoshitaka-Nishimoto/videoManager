@@ -35,6 +35,9 @@ class AiUsageLog extends Model
     /** Runway での画像・動画の生成（usable は Runway の生成依頼）。費用はクレジットから計算し、トークン数は 0。 */
     public const FEATURE_GENERATION = 'generation';
 
+    /** 知識ノードの埋め込み（pgvector の検索・重複の発見）。出力トークンは 0。 */
+    public const FEATURE_EMBEDDING = 'embedding';
+
     /**
      * Get the attributes that should be cast.
      *

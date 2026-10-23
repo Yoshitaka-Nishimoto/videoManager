@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\EmbedKnowledgeNodes;
 use Database\Factories\KnowledgeNodeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\AsVector;
@@ -20,6 +21,9 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'video_analysis_id',
     'merged_into_id',
     'embedding',
+    'embedding_model',
+    'embedding_hash',
+    'embedded_at',
     'proposed_by',
     'confirmed_by',
     'confirmed_at',
@@ -50,6 +54,20 @@ class KnowledgeNode extends Model
     public const PROPOSED_BY_HUMAN = 'human';
 
     /**
+     * 名称・説明が変わったら、埋め込みを作り直す。
+     */
+    protected static function booted(): void
+    {
+        // wasRecentlyCreated は作成後の保存でも true のままなので、作成と更新を分けて判定する。
+        static::created(fn (KnowledgeNode $node) => EmbedKnowledgeNodes::dispatchFor([$node->id]));
+        static::updated(function (KnowledgeNode $node) {
+            if ($node->wasChanged(['title', 'description'])) {
+                EmbedKnowledgeNodes::dispatchFor([$node->id]);
+            }
+        });
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -58,6 +76,7 @@ class KnowledgeNode extends Model
     {
         return [
             'embedding' => AsVector::class,
+            'embedded_at' => 'datetime',
             'confirmed_at' => 'datetime',
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\EmbedKnowledgeNodes;
 use Database\Factories\KnowledgeEdgeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -25,6 +26,19 @@ class KnowledgeEdge extends Model
 {
     /** @use HasFactory<KnowledgeEdgeFactory> */
     use HasFactory;
+
+    /**
+     * 設計判断・実装の埋め込みには、つながる概念・設計判断の名称を入れるので、関係が変わったら作り直す。
+     */
+    protected static function booted(): void
+    {
+        static::created(fn (KnowledgeEdge $edge) => EmbedKnowledgeNodes::dispatchFor([$edge->source_node_id]));
+        static::updated(function (KnowledgeEdge $edge) {
+            if ($edge->wasChanged(['status', 'source_node_id', 'target_node_id'])) {
+                EmbedKnowledgeNodes::dispatchFor([$edge->source_node_id, $edge->getOriginal('source_node_id')]);
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.

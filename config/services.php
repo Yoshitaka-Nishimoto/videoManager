@@ -55,6 +55,15 @@ return [
         'driver' => env('SCRIPT_WRITER', env('VIDEO_ANALYZER', 'dummy')),
     ],
 
+    // 知識ノードの埋め込み（pgvector の検索・重複の発見に使う）。テストでは false にして AI を呼ばない。
+    // 次元数は knowledge_nodes.embedding（vector(1536)）と HNSW 索引の上限（2000）に合わせる。
+    'knowledge_embeddings' => [
+        'enabled' => (bool) env('KNOWLEDGE_EMBEDDINGS', true),
+        'provider' => env('KNOWLEDGE_EMBEDDING_PROVIDER', 'gemini'),
+        'model' => env('KNOWLEDGE_EMBEDDING_MODEL', 'gemini-embedding-2'),
+        'dimensions' => 1536,
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

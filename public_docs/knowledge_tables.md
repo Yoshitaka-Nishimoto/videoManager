@@ -91,6 +91,35 @@ bin/knowledge-graph update   # 先に graphify update . でコードのグラフ
 
 逆に、graph.html でコードのノードの Source（ファイルのパス）を知識一覧の検索欄に貼ると、そのファイルにつながる実装ノードが出る。パス（`/` を含む語）や Graphify のノード ID で探すときは、状態で絞らずに表示する。
 
+## 埋め込み（pgvector）
+
+`knowledge_nodes.embedding`（vector(1536)）に、ノードの意味を表すベクトルを入れる。重複の発見と言い換え検索に使う。候補を出すだけで、確定は人が行う。
+
+| 列 | 内容 |
+|---|---|
+| embedding | 埋め込み（gemini-embedding-2、1536 次元。HNSW 索引は vector 型で 2000 次元までのため） |
+| embedding_model | 作ったモデル |
+| embedding_hash | 元にした文のハッシュ（モデル・次元数を含む）。変わったら作り直す |
+| embedded_at | 作った日時 |
+
+索引：`knowledge_nodes_embedding_hnsw_index`（HNSW、コサイン距離）。
+
+**元にする文**（`KnowledgeEmbedder::text`）
+
+| 種類 | 文 |
+|---|---|
+| 動画 | 名称 ＋ `videos.summary`（動画ノードの説明も分析のたびに要約で更新する） |
+| 分析 | 名称 ＋ 説明（その版の要約） |
+| 概念 | 名称 ＋ 説明 |
+| 設計判断 | 名称 ＋ 説明 ＋ 着想元の概念の名称（説明が短くても意味が伝わるように） |
+| 実装 | 名称 ＋ 説明 ＋ 実装する設計判断・概念の名称 ＋ つないだコードのパス・シンボル |
+
+**作り直すとき**：ノードの作成、名称・説明の変更、関係（設計判断・実装の接続元）やコードの対応の変更で、ジョブ（`EmbedKnowledgeNodes`）が作り直す。元の文が変わっていなければ送らない。まとめて作る・確認するときは `php artisan knowledge:embed`（`--dry-run`：件数と説明が短いノードだけ表示、`--duplicates`：重複の候補を表示、`--force`：すべて作り直す）。テストでは `KNOWLEDGE_EMBEDDINGS=false` で AI を呼ばない。
+
+**重複の候補**：同じ種類の概念・設計判断・実装どうしで、類似度 0.9 以上。動画・分析は事実の記録なので対象にしない（同じ動画の分析の版どうしが似るのは当然のため）。98 件で確かめたところ、関連はあるが別の概念どうしは 0.8〜0.87 だった。
+
+AI 使用量は `ai_usage_logs`（feature = embedding）に記録する。98 件で約 1 万トークン。
+
 ## knowledge_edges.replaced_by_id（誤った関係の修正）【列の追加】
 
 | 列 | 型 | 内容 |

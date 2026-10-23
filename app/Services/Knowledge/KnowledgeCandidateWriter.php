@@ -50,6 +50,11 @@ class KnowledgeCandidateWriter
             $video = $analysis->video;
             $videoNode = $this->videoNode($video);
 
+            // 動画ノードは登録時（分析の前）に作られるので、説明を最新の分析の要約にそろえる。
+            if ($result->summary !== '' && $videoNode->description !== $result->summary) {
+                $videoNode->update(['description' => $result->summary]);
+            }
+
             $analysisNode = KnowledgeNode::query()->firstOrCreate(['video_analysis_id' => $analysis->id], [
                 'node_type' => KnowledgeNode::TYPE_ANALYSIS,
                 'title' => "「{$video->title}」の分析（第{$analysis->version}版）",

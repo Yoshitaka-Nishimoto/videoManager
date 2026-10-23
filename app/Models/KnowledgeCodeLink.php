@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\EmbedKnowledgeNodes;
 use Database\Factories\KnowledgeCodeLinkFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -35,6 +36,19 @@ class KnowledgeCodeLink extends Model
 {
     /** @use HasFactory<KnowledgeCodeLinkFactory> */
     use HasFactory;
+
+    /**
+     * 実装の埋め込みには、つながるコードのパス・シンボルを入れるので、対応が変わったら作り直す。
+     */
+    protected static function booted(): void
+    {
+        static::created(fn (KnowledgeCodeLink $link) => EmbedKnowledgeNodes::dispatchFor([$link->knowledge_node_id]));
+        static::updated(function (KnowledgeCodeLink $link) {
+            if ($link->wasChanged(['status', 'path', 'symbol'])) {
+                EmbedKnowledgeNodes::dispatchFor([$link->knowledge_node_id]);
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.

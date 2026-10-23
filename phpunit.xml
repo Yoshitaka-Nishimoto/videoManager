@@ -32,6 +32,7 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="VIDEO_ANALYZER" value="dummy"/>
+        <env name="KNOWLEDGE_EMBEDDINGS" value="false"/>
         <env name="YOUTUBE_API_KEY" value=""/>
         <env name="GEMINI_API_KEY" value=""/>
         <env name="ANTHROPIC_API_KEY" value=""/>
