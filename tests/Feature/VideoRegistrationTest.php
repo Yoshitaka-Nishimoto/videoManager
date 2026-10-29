@@ -31,6 +31,38 @@ class VideoRegistrationTest extends TestCase
         $this->get('/videos')->assertRedirect('/login');
     }
 
+    public function test_the_genre_is_saved_from_the_detail_page(): void
+    {
+        $video = Video::factory()->create();
+
+        Livewire::test('pages::videos.show', ['video' => $video])
+            ->set('genre', 'investment')
+            ->assertHasNoErrors();
+        $this->assertSame('投資', $video->refresh()->genreLabel());
+
+        Livewire::test('pages::videos.show', ['video' => $video])
+            ->set('genre', 'unknown')
+            ->assertHasErrors('genre')
+            ->set('genre', '');
+        $this->assertNull($video->refresh()->genre);
+    }
+
+    public function test_the_genre_is_saved_from_the_video_list(): void
+    {
+        $video = Video::factory()->create();
+
+        Livewire::test('pages::videos.index')
+            ->call('setGenre', $video->id, 'ai')
+            ->assertHasNoErrors();
+        $this->assertSame('ai', $video->refresh()->genre);
+
+        Livewire::test('pages::videos.index')
+            ->call('setGenre', $video->id, 'unknown')
+            ->assertHasErrors("genre.{$video->id}")
+            ->call('setGenre', $video->id, '');
+        $this->assertNull($video->refresh()->genre);
+    }
+
     public function test_the_video_list_renders(): void
     {
         Video::factory()->create(['title' => '登録済みの動画']);

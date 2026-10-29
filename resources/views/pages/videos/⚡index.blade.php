@@ -2,6 +2,7 @@
 
 use App\Actions\Videos\RegisterYouTubeVideo;
 use App\Models\Video;
+use App\Models\VideoProduction;
 use App\Services\YouTube\YouTubeException;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
@@ -32,6 +33,21 @@ new #[Title('動画一覧')] class extends Component
         session()->flash('status', $created ? '動画を登録しました。' : 'この動画は登録済みです。');
 
         $this->redirectRoute('videos.show', $video, navigate: true);
+    }
+
+    /**
+     * カードで選んだジャンルをすぐ保存する。空を選ぶと未設定に戻す。
+     */
+    public function setGenre(Video $video, string $genre): void
+    {
+        if ($genre !== '' && ! array_key_exists($genre, VideoProduction::GENRES)) {
+            $this->addError("genre.{$video->id}", '選べないジャンルです。');
+
+            return;
+        }
+
+        $video->update(['genre' => $genre ?: null]);
+        unset($this->videos);
     }
 
     /**
@@ -81,8 +97,8 @@ new #[Title('動画一覧')] class extends Component
         @else
             <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 @foreach ($this->videos as $video)
-                    <li wire:key="video-{{ $video->id }}">
-                        <a href="{{ route('videos.show', $video) }}" wire:navigate class="block overflow-hidden rounded-sm border border-[#19140035] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:hover:border-[#62605b]">
+                    <li wire:key="video-{{ $video->id }}" class="overflow-hidden rounded-sm border border-[#19140035] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:hover:border-[#62605b]">
+                        <a href="{{ route('videos.show', $video) }}" wire:navigate class="block">
                             @if ($video->thumbnail_url)
                                 <img src="{{ $video->thumbnail_url }}" alt="" class="aspect-video w-full object-cover" loading="lazy">
                             @else
@@ -107,6 +123,20 @@ new #[Title('動画一覧')] class extends Component
                                 </p>
                             </div>
                         </a>
+                        {{-- リンクの中に置くと選ぶときに画面が移るため、リンクの外に置く。 --}}
+                        <div class="px-3 pb-3">
+                            <select
+                                wire:change="setGenre({{ $video->id }}, $event.target.value)"
+                                aria-label="「{{ $video->title }}」のジャンル"
+                                class="w-full rounded-sm border border-[#19140035] bg-white px-2 py-1 text-xs dark:border-[#3E3E3A] dark:bg-[#161615]"
+                            >
+                                <option value="">ジャンル未設定</option>
+                                @foreach (VideoProduction::GENRES as $key => $name)
+                                    <option wire:key="video-{{ $video->id }}-genre-{{ $key }}" value="{{ $key }}" @selected($video->genre === $key)>{{ $name }}</option>
+                                @endforeach
+                            </select>
+                            @error("genre.{$video->id}") <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
                     </li>
                 @endforeach
             </ul>

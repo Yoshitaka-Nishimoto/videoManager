@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'title',
     'channel_title',
     'description',
+    'genre',
     'summary',
     'duration_seconds',
     'published_at',
@@ -55,6 +56,14 @@ class Video extends Model
             'comment_count' => 'integer',
             'statistics_fetched_at' => 'datetime',
         ];
+    }
+
+    /**
+     * ジャンルの表示名（選択肢は VideoProduction::GENRES）。未設定なら空。
+     */
+    public function genreLabel(): ?string
+    {
+        return $this->genre === null ? null : (VideoProduction::GENRES[$this->genre] ?? $this->genre);
     }
 
     /**

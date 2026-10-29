@@ -138,12 +138,13 @@ AI 使用量は `ai_usage_logs`（feature = embedding）に記録する。98 件
 | タイトル | `knowledge_nodes.title`（部分一致） | なし（下記） |
 | 種類 | `knowledge_nodes.node_type` | あり |
 | 状態 | `knowledge_nodes.status` | あり |
+| ジャンル | `videos.genre`（動画ノードは `video_id`、分析ノードは分析の動画、概念などは自身と廃止していない関係の `knowledge_sources.video_id`）、設計判断は `video_productions.genre`。選択肢は `VideoProduction::GENRES`。動画のジャンルは動画の詳細画面で選ぶ（未設定は空） | あり（`videos.genre`） |
 | 関係 | `knowledge_edges.relation_type_id` | あり |
 | 出典（動画） | `knowledge_sources.video_id` → `videos.title` | あり |
 | コード | `knowledge_code_links.path` | 新規で作る |
 
 - タイトルの部分一致は、ノードが数千件を超えるまでは索引なしで十分（現在 85 件）。遅くなったら `pg_trgm` の GIN 索引を加える。拡張は利用可能で未導入。DB の文字種別は en_US.utf8 なので日本語にも効くが、**2 文字以下の検索語には索引が使われない**。
-- 言い換え検索は、必要になってから pgvector で行う。`knowledge_nodes.embedding`（1536 次元）は作成済み。そのときに `embedding_model`・`embedded_at` の列と HNSW 索引を加える。pgvector は類似の候補を出すだけで、同一かどうかや関係が正しいかは人が確定する。
+- 言い換え検索は pgvector で行う（上の「埋め込み（pgvector）」）。埋め込み・HNSW 索引・検索の処理（`KnowledgeEmbedder::search`）は済みで、画面からはまだ使えない。pgvector は類似の候補を出すだけで、同一かどうかや関係が正しいかは人が確定する。
 
 ## 作らないもの
 

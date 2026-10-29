@@ -8,6 +8,7 @@ use App\Models\KnowledgeNode;
 use App\Models\KnowledgeRelationType;
 use App\Models\KnowledgeSource;
 use App\Models\User;
+use App\Models\VideoProduction;
 use Database\Seeders\KnowledgeRelationTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -38,6 +39,68 @@ class KnowledgePagesTest extends TestCase
             ->set('status', KnowledgeNode::STATUS_CONFIRMED)
             ->assertSee('確定した概念')
             ->assertDontSee('候補の概念');
+    }
+
+    public function test_the_list_shows_a_concepts_description_and_source_video(): void
+    {
+        $concept = KnowledgeNode::factory()->create(['title' => '入力画像の品質確認', 'description' => '生成の前に入力画像を確かめる']);
+        $analysis = KnowledgeNode::factory()->forAnalysis()->create();
+        $edge = KnowledgeEdge::factory()->create([
+            'source_node_id' => $concept->id,
+            'target_node_id' => $analysis->id,
+            'relation_type_id' => KnowledgeRelationType::where('key', 'extracted_from')->value('id'),
+        ]);
+        $source = KnowledgeSource::factory()->create([
+            'sourceable_type' => $edge->getMorphClass(),
+            'sourceable_id' => $edge->id,
+            'start_seconds' => 62,
+            'end_seconds' => 98,
+        ]);
+        $source->video->update(['title' => '品質確認の解説動画']);
+
+        $this->get('/knowledge')
+            ->assertOk()
+            ->assertSee('生成の前に入力画像を確かめる')
+            ->assertSee('品質確認の解説動画')
+            ->assertSee(route('videos.show', $source->video_id))
+            ->assertSee('1:02〜1:38');
+    }
+
+    public function test_the_list_filters_by_the_genre_of_productions(): void
+    {
+        $aiDecision = KnowledgeNode::factory()->decision()->create(['title' => 'AI の設計判断']);
+        $investmentDecision = KnowledgeNode::factory()->decision()->create(['title' => '投資の設計判断']);
+        VideoProduction::factory()->create(['decision_node_id' => $aiDecision->id, 'genre' => 'ai']);
+        VideoProduction::factory()->create(['decision_node_id' => $investmentDecision->id, 'genre' => 'investment']);
+
+        Livewire::test('pages::knowledge.index')
+            ->set('status', '')
+            ->set('genre', 'ai')
+            ->assertSee('AI の設計判断')
+            ->assertDontSee('投資の設計判断');
+    }
+
+    public function test_the_list_filters_concepts_by_the_genre_of_their_source_video(): void
+    {
+        $analysis = KnowledgeNode::factory()->forAnalysis()->create();
+        $extractedFrom = KnowledgeRelationType::where('key', 'extracted_from')->value('id');
+
+        foreach (['ai' => 'AI の概念', 'investment' => '投資の概念'] as $genre => $title) {
+            $edge = KnowledgeEdge::factory()->create([
+                'source_node_id' => KnowledgeNode::factory()->create(['title' => $title])->id,
+                'target_node_id' => $analysis->id,
+                'relation_type_id' => $extractedFrom,
+            ]);
+            KnowledgeSource::factory()->create([
+                'sourceable_type' => $edge->getMorphClass(),
+                'sourceable_id' => $edge->id,
+            ])->video->update(['genre' => $genre]);
+        }
+
+        Livewire::test('pages::knowledge.index')
+            ->set('genre', 'ai')
+            ->assertSee('AI の概念')
+            ->assertDontSee('投資の概念');
     }
 
     public function test_a_candidate_can_be_adopted_from_the_list(): void

@@ -7,8 +7,10 @@ use App\Models\KnowledgeEdge;
 use App\Models\KnowledgeNode;
 use App\Models\Video;
 use App\Models\VideoAnalysis;
+use App\Models\VideoProduction;
 use App\Services\YouTube\YouTubeException;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -16,6 +18,23 @@ use Livewire\Component;
 new #[Title('動画詳細')] class extends Component
 {
     public Video $video;
+
+    public string $genre = '';
+
+    public function mount(): void
+    {
+        $this->genre = (string) $this->video->genre;
+    }
+
+    /**
+     * ジャンルは選んだらすぐ保存する。空を選ぶと未設定に戻す。
+     */
+    public function updatedGenre(): void
+    {
+        $this->validate(['genre' => ['nullable', Rule::in(array_keys(VideoProduction::GENRES))]], attributes: ['genre' => 'ジャンル']);
+
+        $this->video->update(['genre' => $this->genre ?: null]);
+    }
 
     public function analyze(RequestVideoAnalysis $request): void
     {
@@ -100,6 +119,16 @@ new #[Title('動画詳細')] class extends Component
             <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
                 <dt class="text-[#706f6c] dark:text-[#A1A09A]">チャンネル</dt>
                 <dd>{{ $video->channel_title ?? '—' }}</dd>
+                <dt class="text-[#706f6c] dark:text-[#A1A09A]">ジャンル</dt>
+                <dd>
+                    <select wire:model.live="genre" aria-label="ジャンル" class="rounded-sm border border-[#19140035] bg-white px-2 py-0.5 dark:border-[#3E3E3A] dark:bg-[#161615]">
+                        <option value="">未設定</option>
+                        @foreach (VideoProduction::GENRES as $key => $name)
+                            <option wire:key="genre-{{ $key }}" value="{{ $key }}">{{ $name }}</option>
+                        @endforeach
+                    </select>
+                    @error('genre') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                </dd>
                 <dt class="text-[#706f6c] dark:text-[#A1A09A]">再生時間</dt>
                 <dd>{{ Video::formatSeconds($video->duration_seconds) }}</dd>
                 <dt class="text-[#706f6c] dark:text-[#A1A09A]">公開日</dt>
