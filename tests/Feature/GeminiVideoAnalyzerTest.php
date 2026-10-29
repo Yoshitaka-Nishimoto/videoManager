@@ -9,6 +9,7 @@ use App\Models\Video;
 use App\Models\VideoAnalysis;
 use App\Services\AiUsage\AiUsageRecorder;
 use App\Services\Analysis\GeminiVideoAnalyzer;
+use App\Services\Analysis\SourceTypeAnalyzer;
 use App\Services\Analysis\VideoAnalyzer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
@@ -26,7 +27,8 @@ class GeminiVideoAnalyzerTest extends TestCase
     {
         config(['services.video_analyzer.driver' => 'gemini']);
 
-        $this->assertInstanceOf(GeminiVideoAnalyzer::class, app(VideoAnalyzer::class));
+        // YouTube の動画と Web ページで、分析を振り分ける。
+        $this->assertInstanceOf(SourceTypeAnalyzer::class, app(VideoAnalyzer::class));
     }
 
     public function test_an_empty_model_setting_falls_back_to_the_sdk_default(): void

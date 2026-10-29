@@ -63,6 +63,28 @@ class VideoRegistrationTest extends TestCase
         $this->assertNull($video->refresh()->genre);
     }
 
+    public function test_the_video_list_can_be_filtered_by_genre(): void
+    {
+        Video::factory()->create(['title' => 'AIの動画', 'genre' => 'ai']);
+        Video::factory()->create(['title' => '投資の動画', 'genre' => 'investment']);
+        Video::factory()->create(['title' => '未設定の動画', 'genre' => null]);
+
+        Livewire::test('pages::videos.index')
+            ->set('genre', 'investment')
+            ->assertSee('投資の動画')
+            ->assertDontSee('AIの動画')
+            ->assertDontSee('未設定の動画')
+            ->set('genre', 'none')
+            ->assertSee('未設定の動画')
+            ->assertDontSee('投資の動画')
+            ->set('genre', 'video_creation')
+            ->assertSee('このジャンルの情報源はありません。')
+            ->set('genre', '')
+            ->assertSee('AIの動画')
+            ->assertSee('投資の動画')
+            ->assertSee('未設定の動画');
+    }
+
     public function test_the_video_list_renders(): void
     {
         Video::factory()->create(['title' => '登録済みの動画']);
@@ -145,11 +167,14 @@ class VideoRegistrationTest extends TestCase
     {
         Http::fake();
 
-        Livewire::test('pages::videos.index')
-            ->set('url', 'https://example.com/video')
-            ->call('register')
-            ->assertHasErrors('url');
+        foreach (['動画のURL', 'ftp://example.com/file', 'https://www.youtube.com/@channel'] as $url) {
+            Livewire::test('pages::videos.index')
+                ->set('url', $url)
+                ->call('register')
+                ->assertHasErrors('url');
+        }
 
+        Http::assertNothingSent();
         $this->assertSame(0, Video::count());
     }
 

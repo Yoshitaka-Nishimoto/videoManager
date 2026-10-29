@@ -87,7 +87,8 @@ class KnowledgeNode extends Model
     public static function typeLabels(): array
     {
         return [
-            self::TYPE_VIDEO => '動画',
+            // 動画と Web ページの両方を含む。個々のノードは typeLabel() で「動画」「Web」に分けて表示する。
+            self::TYPE_VIDEO => '情報源',
             self::TYPE_ANALYSIS => '分析',
             self::TYPE_CONCEPT => '概念',
             self::TYPE_DECISION => '設計判断',
@@ -98,6 +99,16 @@ class KnowledgeNode extends Model
     public static function typeLabelFor(string $type): string
     {
         return self::typeLabels()[$type] ?? $type;
+    }
+
+    /**
+     * このノードの種類の表示名。情報源のノードは、動画か Web ページかで分ける。
+     */
+    public function typeLabel(): string
+    {
+        return $this->node_type === self::TYPE_VIDEO && $this->video !== null
+            ? $this->video->sourceLabel()
+            : self::typeLabelFor($this->node_type);
     }
 
     public static function statusLabelFor(string $status): string

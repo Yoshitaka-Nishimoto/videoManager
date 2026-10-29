@@ -5,11 +5,14 @@ namespace App\Providers;
 use App\Services\Ai\GeminiModels;
 use App\Services\Analysis\DummyVideoAnalyzer;
 use App\Services\Analysis\GeminiVideoAnalyzer;
+use App\Services\Analysis\GeminiWebPageAnalyzer;
+use App\Services\Analysis\SourceTypeAnalyzer;
 use App\Services\Analysis\VideoAnalyzer;
 use App\Services\Runway\RunwayClient;
 use App\Services\Script\DummyScriptWriter;
 use App\Services\Script\GeminiScriptWriter;
 use App\Services\Script\ScriptWriter;
+use App\Services\Web\WebPageClient;
 use App\Services\YouTube\YouTubeClient;
 use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\ServiceProvider;
@@ -31,9 +34,16 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(VideoAnalyzer::class, fn ($app) => match (config('services.video_analyzer.driver')) {
             // .env で空欄（GEMINI_ANALYSIS_MODEL=）のときは SDK の既定モデルを使う。
-            'gemini' => new GeminiVideoAnalyzer(
-                config('services.video_analyzer.gemini_model') ?: null,
-                config('services.video_analyzer.gemini_fallback_models'),
+            'gemini' => new SourceTypeAnalyzer(
+                video: new GeminiVideoAnalyzer(
+                    config('services.video_analyzer.gemini_model') ?: null,
+                    config('services.video_analyzer.gemini_fallback_models'),
+                ),
+                webPage: new GeminiWebPageAnalyzer(
+                    $app->make(WebPageClient::class),
+                    config('services.video_analyzer.gemini_model') ?: null,
+                    config('services.video_analyzer.gemini_fallback_models'),
+                ),
             ),
             default => $app->make(DummyVideoAnalyzer::class),
         });

@@ -89,7 +89,8 @@ class KnowledgeCandidateWriter
                         'video_analysis_id' => $analysis->id,
                         'start_seconds' => $point['start_seconds'] ?? null,
                         'end_seconds' => $point['end_seconds'] ?? null,
-                        'excerpt' => $point['point'] ?? null,
+                        // Web ページは時刻の代わりに、本文からの引用を根拠として残す。
+                        'excerpt' => filled($point['quote'] ?? null) ? "{$point['point']}\n「{$point['quote']}」" : ($point['point'] ?? null),
                     ]);
                 }
             }

@@ -471,7 +471,7 @@ new #[Title('知識の詳細')] class extends Component
                         <p class="text-xs {{ $muted }}">会話「{{ $source->conversationMessage->conversation?->title }}」より</p>
                     @endif
                     @if ($source->excerpt)
-                        <p class="text-xs">{{ $source->excerpt }}</p>
+                        <p class="whitespace-pre-line text-xs">{{ $source->excerpt }}</p>
                     @endif
                 </div>
             @empty
@@ -483,7 +483,7 @@ new #[Title('知識の詳細')] class extends Component
         <section class="space-y-4 lg:order-2">
             <div class="{{ $card }} space-y-3">
                 <div class="flex flex-wrap items-center gap-2 text-xs">
-                    <span class="{{ $muted }}">{{ KnowledgeNode::typeLabelFor($node->node_type) }}</span>
+                    <span class="{{ $muted }}">{{ $node->typeLabel() }}</span>
                     <x-knowledge.status-badge :status="$node->status" />
                     <span class="{{ $muted }}">提案：{{ $node->proposed_by === KnowledgeNode::PROPOSED_BY_AI ? 'AI' : '人' }}</span>
                 </div>

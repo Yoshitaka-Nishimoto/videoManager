@@ -3,10 +3,8 @@
 namespace App\Services\Analysis;
 
 use App\Ai\Agents\VideoAnalyst;
-use App\Models\KnowledgeNode;
 use App\Models\Video;
 use App\Services\Ai\GeminiModels;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Files\Video as VideoFile;
@@ -20,8 +18,7 @@ use Laravel\Ai\Responses\AgentResponse;
  */
 class GeminiVideoAnalyzer implements VideoAnalyzer
 {
-    /** プロンプトに含める既存の概念の最大数。 */
-    private const EXISTING_CONCEPTS_LIMIT = 100;
+    use NormalizesAnalysisOutput;
 
     /**
      * @param  ?string  $model  最初に使うモデル（null なら SDK の既定）
@@ -60,18 +57,10 @@ class GeminiVideoAnalyzer implements VideoAnalyzer
 
     private function prompt(Video $video): string
     {
-        $existing = KnowledgeNode::query()
-            ->where('node_type', KnowledgeNode::TYPE_CONCEPT)
-            ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
-            ->orderByRaw("case status when 'confirmed' then 0 else 1 end")
-            ->latest('id')
-            ->limit(self::EXISTING_CONCEPTS_LIMIT)
-            ->pluck('title');
-
         return implode("\n", [
             "動画タイトル：{$video->title}",
             '動画の長さ：'.($video->duration_seconds !== null ? "{$video->duration_seconds}秒" : '不明'),
-            '既存の概念：'.($existing->isEmpty() ? 'なし' : $existing->implode('、')),
+            $this->existingConceptsLine(),
             '',
             'この動画を分析してください。',
         ]);
@@ -98,24 +87,14 @@ class GeminiVideoAnalyzer implements VideoAnalyzer
                     'point' => trim($point['point']),
                 ];
             })
-            ->values();
-
-        $concepts = collect($output['concepts'] ?? [])
-            ->filter(fn ($concept) => is_array($concept) && filled($concept['title'] ?? null))
-            ->unique(fn (array $concept) => trim($concept['title']))
-            ->map(fn (array $concept) => [
-                'title' => Str::limit(trim($concept['title']), 250, ''),
-                'description' => trim($concept['description'] ?? ''),
-                'confidence' => round(max(0, min(1, (float) ($concept['confidence'] ?? 0.5))), 3),
-                'key_point' => isset($keyPoints[$concept['key_point'] ?? -1]) ? (int) $concept['key_point'] : null,
-            ])
-            ->values();
+            ->values()
+            ->all();
 
         return new AnalysisResult(
             summary: trim($output['summary'] ?? ''),
-            topics: collect($output['topics'] ?? [])->filter(fn ($topic) => is_string($topic) && filled($topic))->map(fn ($topic) => trim($topic))->values()->all(),
-            keyPoints: $keyPoints->all(),
-            concepts: $concepts->all(),
+            topics: $this->normalizeTopics($output),
+            keyPoints: $keyPoints,
+            concepts: $this->normalizeConcepts($output, $keyPoints),
             model: $model,
             prompt: $prompt,
         );

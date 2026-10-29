@@ -15,7 +15,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
-new #[Title('動画詳細')] class extends Component
+new #[Title('情報源の詳細')] class extends Component
 {
     public Video $video;
 
@@ -102,7 +102,7 @@ new #[Title('動画詳細')] class extends Component
 
 <div class="space-y-8" @if ($this->isAnalyzing) wire:poll.2s @endif>
     <div>
-        <a href="{{ route('videos.index') }}" wire:navigate class="text-sm text-[#706f6c] hover:underline dark:text-[#A1A09A]">← 動画一覧</a>
+        <a href="{{ route('videos.index') }}" wire:navigate class="text-sm text-[#706f6c] hover:underline dark:text-[#A1A09A]">← 情報源一覧</a>
     </div>
 
     @if (session('status'))
@@ -117,7 +117,9 @@ new #[Title('動画詳細')] class extends Component
         <div class="space-y-3">
             <h1 class="text-xl font-semibold">{{ $video->title }}</h1>
             <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-                <dt class="text-[#706f6c] dark:text-[#A1A09A]">チャンネル</dt>
+                <dt class="text-[#706f6c] dark:text-[#A1A09A]">種類</dt>
+                <dd>{{ $video->sourceLabel() }}</dd>
+                <dt class="text-[#706f6c] dark:text-[#A1A09A]">{{ $video->isWebPage() ? 'サイト' : 'チャンネル' }}</dt>
                 <dd>{{ $video->channel_title ?? '—' }}</dd>
                 <dt class="text-[#706f6c] dark:text-[#A1A09A]">ジャンル</dt>
                 <dd>
@@ -129,11 +131,17 @@ new #[Title('動画詳細')] class extends Component
                     </select>
                     @error('genre') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
                 </dd>
-                <dt class="text-[#706f6c] dark:text-[#A1A09A]">再生時間</dt>
-                <dd>{{ Video::formatSeconds($video->duration_seconds) }}</dd>
+                @unless ($video->isWebPage())
+                    <dt class="text-[#706f6c] dark:text-[#A1A09A]">再生時間</dt>
+                    <dd>{{ Video::formatSeconds($video->duration_seconds) }}</dd>
+                @endunless
                 <dt class="text-[#706f6c] dark:text-[#A1A09A]">公開日</dt>
                 <dd>{{ $video->published_at?->format('Y-m-d') ?? '—' }}</dd>
-                <dt class="text-[#706f6c] dark:text-[#A1A09A]">YouTube</dt>
+                @if ($video->isWebPage() && $video->description)
+                    <dt class="text-[#706f6c] dark:text-[#A1A09A]">説明</dt>
+                    <dd>{{ $video->description }}</dd>
+                @endif
+                <dt class="text-[#706f6c] dark:text-[#A1A09A]">{{ $video->isWebPage() ? 'URL' : 'YouTube' }}</dt>
                 <dd><a href="{{ $video->url }}" target="_blank" rel="noopener" class="break-all text-blue-700 hover:underline dark:text-blue-400">{{ $video->url }}</a></dd>
                 @if ($video->youtube_id)
                     <dt class="text-[#706f6c] dark:text-[#A1A09A]">統計</dt>
@@ -241,13 +249,36 @@ new #[Title('動画詳細')] class extends Component
                 <ul class="space-y-1 text-sm">
                     @foreach ($content['key_points'] as $point)
                         <li wire:key="point-{{ $loop->index }}">
-                            <a href="{{ $video->urlAt($point['start_seconds']) }}" target="_blank" rel="noopener" class="font-mono text-blue-700 hover:underline dark:text-blue-400">
-                                {{ Video::formatSeconds($point['start_seconds']) }}〜{{ Video::formatSeconds($point['end_seconds']) }}
-                            </a>
+                            @if (($point['start_seconds'] ?? null) !== null)
+                                <a href="{{ $video->urlAt($point['start_seconds']) }}" target="_blank" rel="noopener" class="font-mono text-blue-700 hover:underline dark:text-blue-400">
+                                    {{ Video::formatSeconds($point['start_seconds']) }}〜{{ Video::formatSeconds($point['end_seconds']) }}
+                                </a>
+                            @endif
                             {{ $point['point'] }}
+                            @if (filled($point['quote'] ?? null))
+                                <a href="{{ $video->urlForQuote($point['quote']) }}" target="_blank" rel="noopener" class="mt-0.5 block border-l-2 border-[#19140035] pl-2 text-xs text-[#706f6c] hover:underline dark:border-[#3E3E3A] dark:text-[#A1A09A]">「{{ $point['quote'] }}」</a>
+                            @endif
                         </li>
                     @endforeach
                 </ul>
+                @if ($video->isWebPage())
+                    <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">引用を押すと、ページのその箇所を開きます（ブラウザが対応している場合）。</p>
+                @endif
+            </section>
+        @endif
+
+        @if ($this->latestCompleted->source_text !== null)
+            <section class="space-y-2">
+                <h2 class="text-lg font-semibold">分析に使った本文</h2>
+                <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">
+                    {{ $this->latestCompleted->source_fetched_at?->format('Y-m-d H:i') }} に
+                    <a href="{{ $this->latestCompleted->source_url }}" target="_blank" rel="noopener" class="break-all text-blue-700 hover:underline dark:text-blue-400">{{ $this->latestCompleted->source_url }}</a>
+                    から取得（{{ number_format(mb_strlen($this->latestCompleted->source_text)) }} 文字）
+                </p>
+                <details class="rounded-sm border border-[#19140035] dark:border-[#3E3E3A]">
+                    <summary class="cursor-pointer px-3 py-2 text-sm">本文を表示</summary>
+                    <pre class="max-h-96 overflow-auto whitespace-pre-wrap break-words border-t border-[#19140035] px-3 py-2 text-xs dark:border-[#3E3E3A]">{{ $this->latestCompleted->source_text }}</pre>
+                </details>
             </section>
         @endif
 
@@ -273,10 +304,12 @@ new #[Title('動画詳細')] class extends Component
                             @foreach ($edge->sources as $source)
                                 <p wire:key="source-{{ $source->id }}" class="mt-1 text-xs">
                                     出典：
-                                    <a href="{{ $video->urlAt($source->start_seconds) }}" target="_blank" rel="noopener" class="font-mono text-blue-700 hover:underline dark:text-blue-400">
-                                        {{ Video::formatSeconds($source->start_seconds) }}〜{{ Video::formatSeconds($source->end_seconds) }}
-                                    </a>
-                                    {{ $source->excerpt }}
+                                    @if ($source->start_seconds !== null)
+                                        <a href="{{ $video->urlAt($source->start_seconds) }}" target="_blank" rel="noopener" class="font-mono text-blue-700 hover:underline dark:text-blue-400">
+                                            {{ Video::formatSeconds($source->start_seconds) }}〜{{ Video::formatSeconds($source->end_seconds) }}
+                                        </a>
+                                    @endif
+                                    <span class="whitespace-pre-line">{{ $source->excerpt }}</span>
                                 </p>
                             @endforeach
                         </li>

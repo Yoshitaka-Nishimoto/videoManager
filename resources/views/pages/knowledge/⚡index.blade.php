@@ -67,6 +67,7 @@ new #[Title('知識')] class extends Component
                 ->whereLike('title', '%'.trim($this->q).'%')
                 ->orWhereHas('codeLinks', $codeLinkMatches)))
             ->when(trim($this->q) !== '', fn ($query) => $query->with(['codeLinks' => $codeLinkMatches]))
+            ->with('video')
             ->withCount(['outgoingEdges', 'incomingEdges', 'sources'])
             ->orderByRaw("case status when 'candidate' then 0 when 'confirmed' then 1 else 2 end")
             ->latest('id')
@@ -215,7 +216,7 @@ new #[Title('知識')] class extends Component
                 <li wire:key="node-{{ $node->id }}" class="space-y-1 py-3 text-sm">
                     {{-- 1 行目は折り返さない。名称だけが縮み、状態・件数・操作は常に右端にそろえる。 --}}
                     <div class="flex items-center gap-3">
-                        <span class="w-16 shrink-0 text-xs text-[#706f6c] dark:text-[#A1A09A]">{{ KnowledgeNode::typeLabelFor($node->node_type) }}</span>
+                        <span class="w-16 shrink-0 text-xs text-[#706f6c] dark:text-[#A1A09A]">{{ $node->typeLabel() }}</span>
                         <a href="{{ route('knowledge.show', $node) }}" wire:navigate class="min-w-0 flex-1 truncate font-medium hover:underline">{{ $node->title }}</a>
                         <span class="flex shrink-0 items-center gap-3">
                             <x-knowledge.status-badge :status="$node->status" />

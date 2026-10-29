@@ -50,6 +50,9 @@ class AnalyzeVideo implements ShouldQueue
                 'content' => $result->content(),
                 'model' => $result->model,
                 'prompt' => $result->prompt,
+                'source_url' => $result->source?->sourceUrl,
+                'source_text' => $result->source?->text,
+                'source_fetched_at' => $result->source !== null ? now() : null,
                 'analyzed_at' => now(),
             ]);
 

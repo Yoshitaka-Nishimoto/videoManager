@@ -1,38 +1,75 @@
 <?php
 
+use App\Actions\Videos\RegisterWebPage;
 use App\Actions\Videos\RegisterYouTubeVideo;
 use App\Models\Video;
 use App\Models\VideoProduction;
+use App\Services\Web\WebPageException;
 use App\Services\YouTube\YouTubeException;
+use App\Services\YouTube\YouTubeVideoId;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-new #[Title('動画一覧')] class extends Component
+new #[Title('情報源一覧')] class extends Component
 {
     use WithPagination;
 
-    #[Validate('required|string|max:2048', as: 'YouTube URL')]
+    #[Validate('required|string|max:2048', as: 'URL')]
     public string $url = '';
 
-    public function register(RegisterYouTubeVideo $register): void
+    /** 一覧の絞り込み。VideoProduction::GENRES のキー、または未設定（GENRE_NONE）。 */
+    #[Url]
+    public string $genre = '';
+
+    private const GENRE_NONE = 'none';
+
+    public function updatedGenre(): void
+    {
+        $this->resetPage();
+    }
+
+    /**
+     * YouTube の動画 URL は動画として、それ以外（公式サイト・GitHub など）は Web ページとして登録する。
+     */
+    public function register(RegisterYouTubeVideo $registerYouTube, RegisterWebPage $registerWebPage): void
     {
         $this->validate();
 
+        $isYouTube = YouTubeVideoId::parse($this->url) !== null;
+
         try {
-            ['video' => $video, 'created' => $created] = $register->handle($this->url, auth()->user());
-        } catch (YouTubeException $e) {
+            if (! $isYouTube && $this->isYouTubeHost($this->url)) {
+                throw new YouTubeException('YouTube の動画 URL として読み取れませんでした。');
+            }
+
+            ['video' => $video, 'created' => $created] = $isYouTube
+                ? $registerYouTube->handle($this->url, auth()->user())
+                : $registerWebPage->handle($this->url, auth()->user());
+        } catch (YouTubeException|WebPageException $e) {
             $this->addError('url', $e->getMessage());
 
             return;
         }
 
-        session()->flash('status', $created ? '動画を登録しました。' : 'この動画は登録済みです。');
+        $kind = $video->isWebPage() ? 'ページ' : '動画';
+        session()->flash('status', $created ? "{$kind}を登録しました。" : "この{$kind}は登録済みです。");
 
         $this->redirectRoute('videos.show', $video, navigate: true);
+    }
+
+    /**
+     * YouTube のチャンネルや再生リストなど、動画ではない YouTube の URL を Web ページとして登録しないため。
+     */
+    private function isYouTubeHost(string $url): bool
+    {
+        $host = strtolower((string) parse_url(trim($url), PHP_URL_HOST));
+
+        return in_array(preg_replace('/^(www\.|m\.|music\.)/', '', $host), ['youtube.com', 'youtu.be', 'youtube-nocookie.com'], true);
     }
 
     /**
@@ -58,6 +95,8 @@ new #[Title('動画一覧')] class extends Component
     {
         return Video::query()
             ->with('latestAnalysis')
+            ->when($this->genre === self::GENRE_NONE, fn ($query) => $query->whereNull('genre'))
+            ->when(array_key_exists($this->genre, VideoProduction::GENRES), fn ($query) => $query->where('genre', $this->genre))
             ->latest('id')
             ->paginate(12);
     }
@@ -66,15 +105,15 @@ new #[Title('動画一覧')] class extends Component
 
 <div class="space-y-8">
     <section>
-        <h1 class="mb-4 text-xl font-semibold">動画一覧</h1>
+        <h1 class="mb-4 text-xl font-semibold">情報源一覧</h1>
 
         <form wire:submit="register" class="flex flex-col gap-2 sm:flex-row">
-            <label for="url" class="sr-only">YouTube URL</label>
+            <label for="url" class="sr-only">URL</label>
             <input
                 id="url"
                 type="text"
                 wire:model="url"
-                placeholder="https://www.youtube.com/watch?v=..."
+                placeholder="YouTube の動画、公式サイト、GitHub などの URL"
                 class="w-full rounded-sm border border-[#19140035] bg-white px-3 py-2 text-sm dark:border-[#3E3E3A] dark:bg-[#161615]"
             >
             <button
@@ -89,11 +128,24 @@ new #[Title('動画一覧')] class extends Component
         @error('url')
             <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
         @enderror
+        <p class="mt-2 text-xs text-[#706f6c] dark:text-[#A1A09A]">YouTube 以外の URL は Web ページとして登録し、本文を読んで分析します。ログインが必要なページと PDF にはまだ対応していません。</p>
     </section>
 
     <section>
-        @if ($this->videos->isEmpty())
-            <p class="text-sm text-[#706f6c] dark:text-[#A1A09A]">まだ動画が登録されていません。YouTube の URL を貼って登録してください。</p>
+        <div class="mb-4 flex justify-end text-sm">
+            <select wire:model.live="genre" aria-label="ジャンルで絞り込む" class="rounded-sm border border-[#19140035] bg-white px-2 py-1 dark:border-[#3E3E3A] dark:bg-[#161615]">
+                <option value="">すべてのジャンル</option>
+                @foreach (VideoProduction::GENRES as $key => $name)
+                    <option value="{{ $key }}">{{ $name }}</option>
+                @endforeach
+                <option value="none">ジャンル未設定</option>
+            </select>
+        </div>
+
+        @if ($this->videos->isEmpty() && $genre !== '')
+            <p class="text-sm text-[#706f6c] dark:text-[#A1A09A]">このジャンルの情報源はありません。</p>
+        @elseif ($this->videos->isEmpty())
+            <p class="text-sm text-[#706f6c] dark:text-[#A1A09A]">まだ情報源が登録されていません。YouTube の動画や、公式サイト・GitHub などの URL を貼って登録してください。</p>
         @else
             <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 @foreach ($this->videos as $video)
@@ -107,7 +159,8 @@ new #[Title('動画一覧')] class extends Component
                             <div class="space-y-1 p-3">
                                 <p class="line-clamp-2 text-sm font-medium">{{ $video->title }}</p>
                                 <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">
-                                    {{ $video->channel_title ?? '—' }} · {{ Video::formatSeconds($video->duration_seconds) }}
+                                    <span class="mr-1 rounded-full border border-[#19140035] px-1.5 dark:border-[#3E3E3A]">{{ $video->sourceLabel() }}</span>
+                                    {{ $video->channel_title ?? '—' }}{{ $video->isWebPage() ? '' : ' · '.Video::formatSeconds($video->duration_seconds) }}
                                 </p>
                                 @if ($video->statistics_fetched_at)
                                     <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">

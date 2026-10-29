@@ -28,4 +28,19 @@ class VideoFactory extends Factory
             'thumbnail_url' => fn (array $attributes) => 'https://i.ytimg.com/vi/'.$attributes['youtube_id'].'/hqdefault.jpg',
         ];
     }
+
+    /**
+     * 公式サイト・GitHub などの Web ページ。
+     */
+    public function webPage(string $url = 'https://example.com/docs/guide'): static
+    {
+        return $this->state(fn () => [
+            'source_type' => Video::SOURCE_WEB,
+            'youtube_id' => null,
+            'url' => $url,
+            'channel_title' => 'Example Docs',
+            'duration_seconds' => null,
+            'thumbnail_url' => null,
+        ]);
+    }
 }

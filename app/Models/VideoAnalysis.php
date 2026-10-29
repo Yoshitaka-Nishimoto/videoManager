@@ -19,6 +19,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'content',
     'model',
     'prompt',
+    'source_url',
+    'source_text',
+    'source_fetched_at',
     'error_message',
     'requested_by',
     'started_at',
@@ -50,6 +53,7 @@ class VideoAnalysis extends Model
             'content' => 'json:unicode',
             'started_at' => 'datetime',
             'analyzed_at' => 'datetime',
+            'source_fetched_at' => 'datetime',
         ];
     }
 

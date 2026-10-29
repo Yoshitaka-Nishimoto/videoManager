@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 #[Fillable([
     'source_type',
@@ -36,6 +37,9 @@ class Video extends Model
     use HasFactory, SoftDeletes;
 
     public const SOURCE_YOUTUBE = 'youtube';
+
+    /** 公式サイト・GitHub などの Web ページ。本文を取得して分析する。 */
+    public const SOURCE_WEB = 'web';
 
     public const SOURCE_RUNWAY = 'runway';
 
@@ -98,6 +102,34 @@ class Video extends Model
     public function latestAnalysis(): HasOne
     {
         return $this->hasOne(VideoAnalysis::class)->latestOfMany('version');
+    }
+
+    public function isWebPage(): bool
+    {
+        return $this->source_type === self::SOURCE_WEB;
+    }
+
+    /**
+     * 情報源の種類の表示名。
+     */
+    public function sourceLabel(): string
+    {
+        return $this->isWebPage() ? 'Web' : '動画';
+    }
+
+    /**
+     * Web ページの引用箇所へ移動する URL（ブラウザのテキストフラグメント）。引用がなければページの URL。
+     */
+    public function urlForQuote(?string $quote): ?string
+    {
+        if ($this->url === null || blank($quote)) {
+            return $this->url;
+        }
+
+        // 長い引用は一致しにくいので、先頭の一部だけで探す。
+        $text = Str::limit(preg_replace('/\s+/u', ' ', trim($quote)), 60, '');
+
+        return Str::before($this->url, '#').'#:~:text='.rawurlencode($text);
     }
 
     /**
