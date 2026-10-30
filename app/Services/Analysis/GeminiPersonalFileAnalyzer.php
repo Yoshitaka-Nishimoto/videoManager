@@ -16,6 +16,7 @@ use Laravel\Ai\Responses\AgentResponse;
  * 既存の概念は、共有の概念と本人の概念だけを渡す（他の利用者の個人の概念は渡さない）。
  * 利用者の名前など、本人を特定する情報はプロンプトに入れない。
  * 文章にしたデータは AnalysisResult::$source で返し、分析の版ごとに保存する。
+ * データは文章なので、Gemini 以外の AI（OpenAI など。services.video_analyzer.text_provider）でも分析できる。
  */
 class GeminiPersonalFileAnalyzer implements VideoAnalyzer
 {
@@ -24,11 +25,13 @@ class GeminiPersonalFileAnalyzer implements VideoAnalyzer
     /**
      * @param  ?string  $model  最初に使うモデル（null なら SDK の既定）
      * @param  list<string>  $fallbackModels  混雑・回数制限のときに順に試すモデル
+     * @param  Lab  $provider  分析に使う AI
      */
     public function __construct(
         private readonly PersonalFileReader $files,
         private readonly ?string $model = null,
         private readonly array $fallbackModels = [],
+        private readonly Lab $provider = Lab::Gemini,
     ) {}
 
     public function analyze(Video $video, callable $reportProgress): AnalysisResult
@@ -52,7 +55,7 @@ class GeminiPersonalFileAnalyzer implements VideoAnalyzer
         [$response, $model] = (new GeminiModels($this->model, $this->fallbackModels))->attempt(
             fn (?string $model) => (new PersonalDataAnalyst)->prompt(
                 $header."\n\nデータ：\n<<<\n{$content->text}\n>>>",
-                provider: Lab::Gemini,
+                provider: $this->provider,
                 model: $model,
             ),
             purpose: '分析',
@@ -70,7 +73,7 @@ class GeminiPersonalFileAnalyzer implements VideoAnalyzer
             topics: $this->normalizeTopics($output),
             keyPoints: $keyPoints,
             concepts: $this->normalizeConcepts($output, $keyPoints),
-            model: $response->meta->model ?? $model ?? 'gemini',
+            model: $response->meta->model ?? $model ?? $this->provider->value,
             prompt: $header."\n\nデータ：（分析の source_text を参照）",
             source: $content,
         );

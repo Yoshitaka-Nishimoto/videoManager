@@ -506,24 +506,27 @@ new #[Title('制作詳細')] class extends Component
                     @endif
 
                     @if ($progress = $plan->scriptProgress())
-                        {{-- 進行状況：① 順番待ち → ② Gemini が作成中 → ③ 完了。目安は 20〜60 秒。 --}}
+                        {{-- 進行状況：① 順番待ち → ② AI が作成中 → ③ 完了。目安は 20〜60 秒。 --}}
                         <div class="space-y-2 rounded-sm bg-[#f7f6f2] p-3 text-sm dark:bg-[#1f1f1e]">
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <ol class="flex flex-wrap items-center gap-2 text-xs">
                                     <li @class(['rounded-full px-2 py-0.5', 'bg-[#1b1b18] text-white dark:bg-[#EDEDEC] dark:text-[#1b1b18]' => $progress['stage'] === 'waiting', $muted => $progress['stage'] !== 'waiting'])>① 順番待ち</li>
                                     <li class="{{ $muted }}">→</li>
-                                    <li @class(['rounded-full px-2 py-0.5', 'bg-[#1b1b18] text-white dark:bg-[#EDEDEC] dark:text-[#1b1b18]' => $progress['stage'] === 'running', $muted => $progress['stage'] !== 'running'])>② Gemini が作成中</li>
+                                    <li @class(['rounded-full px-2 py-0.5', 'bg-[#1b1b18] text-white dark:bg-[#EDEDEC] dark:text-[#1b1b18]' => $progress['stage'] === 'running', $muted => $progress['stage'] !== 'running'])>② AI が作成中</li>
                                     <li class="{{ $muted }}">→</li>
                                     <li class="px-2 py-0.5 {{ $muted }}">③ 完了</li>
                                 </ol>
                                 <button type="button" wire:click="cancelScript" wire:loading.attr="disabled" class="{{ $subButton }}">止める</button>
                             </div>
                             <p>
-                                {{ $progress['stage'] === 'waiting' ? '順番待ち' : 'Gemini が作成中' }}：{{ $progress['seconds'] }} 秒経過
+                                {{ $progress['stage'] === 'waiting' ? '順番待ち' : 'AI が作成中' }}：{{ $progress['seconds'] }} 秒経過
                                 @if ($progress['stage'] === 'running')
                                     <span class="{{ $muted }}">（目安 20〜60 秒）</span>
                                 @endif
                             </p>
+                            @if ($progress['stage'] === 'running' && ! $progress['late'])
+                                <x-ai-thinking label="AI が台本の候補を考えています…" />
+                            @endif
                             @if ($progress['stage'] === 'running')
                                 <span class="block h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-[#e5e5e0] dark:bg-[#3E3E3A]">
                                     <span class="block h-full bg-[#1b1b18] transition-all dark:bg-[#EDEDEC]" style="width: {{ min(95, (int) round($progress['seconds'] / 60 * 100)) }}%"></span>
@@ -536,7 +539,7 @@ new #[Title('制作詳細')] class extends Component
                                     を起動するか、「止める」を押してください。
                                 </p>
                             @elseif ($progress['late'])
-                                <p class="text-xs text-amber-700 dark:text-amber-400">Gemini から応答がありません。「止める」を押してから、作り直してください。</p>
+                                <p class="text-xs text-amber-700 dark:text-amber-400">AI から応答がありません。「止める」を押してから、作り直してください。</p>
                             @endif
                         </div>
                     @elseif ($plan->script_status === ProductionPlan::SCRIPT_FAILED)

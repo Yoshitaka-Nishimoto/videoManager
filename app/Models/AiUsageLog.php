@@ -38,6 +38,9 @@ class AiUsageLog extends Model
     /** 知識ノードの埋め込み（pgvector の検索・重複の発見）。出力トークンは 0。 */
     public const FEATURE_EMBEDDING = 'embedding';
 
+    /** 知識への質問（知識一覧の「確認済み」の質問欄）。usable はなし。 */
+    public const FEATURE_CHAT = 'knowledge_chat';
+
     /**
      * Get the attributes that should be cast.
      *

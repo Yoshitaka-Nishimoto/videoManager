@@ -234,7 +234,8 @@ class ProductionScriptTest extends TestCase
         $this->travel(12)->seconds();
 
         $this->page($plan)
-            ->assertSee('Gemini が作成中：12 秒経過')
+            ->assertSee('AI が作成中：12 秒経過')
+            ->assertSee('AI が台本の候補を考えています…')
             ->assertDontSee('キューのワーカーが動いていない可能性があります');
     }
 

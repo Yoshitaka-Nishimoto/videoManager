@@ -142,27 +142,46 @@ class KnowledgeEmbedder
      */
     public function search(string $query, int $limit = 10, float $minSimilarity = 0.5): Collection
     {
-        $vector = $this->usage->within(AiUsageLog::FEATURE_EMBEDDING, null, fn () => Embeddings::for([$query])
+        return $this->nearest($this->vectorFor($query), $minSimilarity, $limit)->get();
+    }
+
+    /**
+     * 文の埋め込み。同じ文は 1 日キャッシュする（検索欄の再描画やページ送りのたびに API を呼ばないように）。
+     *
+     * @return array<int, float>
+     */
+    public function vectorFor(string $text): array
+    {
+        return $this->usage->within(AiUsageLog::FEATURE_EMBEDDING, null, fn () => Embeddings::for([$text])
             ->dimensions($this->dimensions())
+            ->cache(60 * 60 * 24)
             ->generate(config('services.knowledge_embeddings.provider'), $this->model())
             ->first());
+    }
 
-        return $this->nearest($vector, $minSimilarity, $limit)->get();
+    /**
+     * 文と意味の近いノードを、近い順に返すクエリ（similarity 付き）。状態・種類・見える範囲などの条件は呼び出し側で足す。
+     *
+     * @param  array<int, float>  $vector
+     * @return Builder<KnowledgeNode>
+     */
+    public function similarTo(array $vector, float $minSimilarity = 0.5): Builder
+    {
+        return KnowledgeNode::query()
+            ->select('knowledge_nodes.*')
+            ->selectRaw('1 - (embedding <=> ?::vector) as similarity', [json_encode($vector)])
+            ->whereNotNull('embedding')
+            ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
+            ->whereVectorSimilarTo('embedding', $vector, $minSimilarity);
     }
 
     /**
      * @param  array<int, float>  $vector
      * @return Builder<KnowledgeNode>
      */
-    private function nearest(array $vector, float $minSimilarity, int $limit)
+    private function nearest(array $vector, float $minSimilarity, int $limit): Builder
     {
-        return KnowledgeNode::query()
-            ->select('*')
-            ->selectRaw('1 - (embedding <=> ?::vector) as similarity', [json_encode($vector)])
-            ->whereNotNull('embedding')
-            ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
-            ->whereVectorSimilarTo('embedding', $vector, $minSimilarity)
-            ->limit($limit);
+        return $this->similarTo($vector, $minSimilarity)->limit($limit);
     }
 
     private function linkedTitles(KnowledgeNode $node, string $relationKey): string

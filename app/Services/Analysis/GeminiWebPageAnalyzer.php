@@ -16,6 +16,7 @@ use Laravel\Ai\Responses\AgentResponse;
  *
  * 取得した本文は AnalysisResult::$source で返し、分析の版ごとに保存する（何を読んで分析したかを確かめられるように）。
  * モデルの切り替えと AI 使用量の記録は GeminiVideoAnalyzer と同じ。
+ * 本文は文章なので、Gemini 以外の AI（OpenAI など。services.video_analyzer.text_provider）でも分析できる。
  */
 class GeminiWebPageAnalyzer implements VideoAnalyzer
 {
@@ -24,11 +25,13 @@ class GeminiWebPageAnalyzer implements VideoAnalyzer
     /**
      * @param  ?string  $model  最初に使うモデル（null なら SDK の既定）
      * @param  list<string>  $fallbackModels  混雑・回数制限のときに順に試すモデル
+     * @param  Lab  $provider  分析に使う AI
      */
     public function __construct(
         private readonly WebPageClient $web,
         private readonly ?string $model = null,
         private readonly array $fallbackModels = [],
+        private readonly Lab $provider = Lab::Gemini,
     ) {}
 
     public function analyze(Video $video, callable $reportProgress): AnalysisResult
@@ -46,7 +49,7 @@ class GeminiWebPageAnalyzer implements VideoAnalyzer
         [$response, $model] = (new GeminiModels($this->model, $this->fallbackModels))->attempt(
             fn (?string $model) => (new WebPageAnalyst)->prompt(
                 $header."\n\n本文：\n<<<\n{$content->text}\n>>>",
-                provider: Lab::Gemini,
+                provider: $this->provider,
                 model: $model,
             ),
             purpose: '分析',
@@ -59,7 +62,7 @@ class GeminiWebPageAnalyzer implements VideoAnalyzer
         return $this->toResult(
             $response->toArray(),
             $content,
-            $response->meta->model ?? $model ?? 'gemini',
+            $response->meta->model ?? $model ?? $this->provider->value,
             $header."\n\n本文：（分析の source_text を参照）",
         );
     }

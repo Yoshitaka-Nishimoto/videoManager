@@ -5,9 +5,11 @@ use App\Models\KnowledgeSource;
 use App\Models\Video;
 use App\Models\VideoProduction;
 use App\Services\Knowledge\KnowledgeCurator;
+use App\Services\Knowledge\KnowledgeEmbedder;
 use App\Services\Knowledge\KnowledgeRuleViolation;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -31,9 +33,18 @@ new #[Title('知識')] class extends Component
     #[Url]
     public string $q = '';
 
+    /** 意味で検索する（pgvector）。名称の文字が一致しなくても、意味の近いノードを類似度の高い順に出す。 */
+    #[Url]
+    public bool $semantic = false;
+
+    /** 意味で検索するときに出す件数の上限と、類似度の下限（関連のない概念は 0.6 未満になることが多い）。 */
+    public const SEMANTIC_LIMIT = 30;
+
+    public const SEMANTIC_MIN_SIMILARITY = 0.6;
+
     public function updated(string $property): void
     {
-        if (in_array($property, ['status', 'type', 'genre', 'q'], true)) {
+        if (in_array($property, ['status', 'type', 'genre', 'q', 'semantic'], true)) {
             $this->resetPage();
         }
     }
@@ -54,23 +65,7 @@ new #[Title('知識')] class extends Component
     #[Computed]
     public function nodes(): LengthAwarePaginator
     {
-        $codeLinkMatches = fn ($query) => $query
-            ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
-            ->where(fn ($q) => $q->whereLike('path', '%'.trim($this->q).'%')->orWhere('graphify_node_id', trim($this->q)));
-
-        $nodes = KnowledgeNode::query()
-            ->when($this->status !== '' && ! $this->searchingCode(), fn ($query) => $query->where('status', $this->status))
-            ->when($this->type !== '', fn ($query) => $query->where('node_type', $this->type))
-            ->when($this->genre !== '', fn ($query) => $query->inGenre($this->genre))
-            ->when(trim($this->q) !== '', fn ($query) => $query->where(fn ($q) => $q
-                ->whereLike('title', '%'.trim($this->q).'%')
-                ->orWhereHas('codeLinks', $codeLinkMatches)))
-            ->when(trim($this->q) !== '', fn ($query) => $query->with(['codeLinks' => $codeLinkMatches]))
-            ->with('video')
-            ->withCount(['outgoingEdges', 'incomingEdges', 'sources'])
-            ->orderByRaw("case status when 'candidate' then 0 when 'confirmed' then 1 else 2 end")
-            ->latest('id')
-            ->paginate(20);
+        $nodes = $this->semanticVector !== null ? $this->similarNodes($this->semanticVector) : $this->matchingNodes();
 
         // 概念は出どころの動画を示すため、自身と抽出元の関係（廃止を除く）の出典を動画付きで読み込む。
         $withVideo = fn ($query) => $query->whereNotNull('video_id')->with('video');
@@ -84,6 +79,72 @@ new #[Title('知識')] class extends Component
             ]);
 
         return $nodes;
+    }
+
+    /**
+     * 意味で検索するときの、検索語の埋め込み。意味で検索しないとき・埋め込みを作れなかったときは null（名称で検索する）。
+     *
+     * @return ?array<int, float>
+     */
+    #[Computed]
+    public function semanticVector(): ?array
+    {
+        if (! $this->semantic || trim($this->q) === '' || $this->searchingCode() || ! app(KnowledgeEmbedder::class)->enabled()) {
+            return null;
+        }
+
+        try {
+            return app(KnowledgeEmbedder::class)->vectorFor(trim($this->q));
+        } catch (Throwable $e) {
+            Log::warning('意味で検索するための埋め込みを作れませんでした。', ['error' => $e->getMessage()]);
+            $this->addError('semantic', '意味で検索できなかったため、名称で検索しています（'.$e->getMessage().'）。');
+
+            return null;
+        }
+    }
+
+    /**
+     * 意味の近いノード（類似度の高い順、最大 SEMANTIC_LIMIT 件、1 ページ）。状態・種類・ジャンルの絞り込みは名称の検索と同じ。
+     *
+     * @param  array<int, float>  $vector
+     * @return LengthAwarePaginator<int, KnowledgeNode>
+     */
+    private function similarNodes(array $vector): LengthAwarePaginator
+    {
+        $nodes = app(KnowledgeEmbedder::class)->similarTo($vector, self::SEMANTIC_MIN_SIMILARITY)
+            ->when($this->status !== '', fn ($query) => $query->where('status', $this->status))
+            ->when($this->type !== '', fn ($query) => $query->where('node_type', $this->type))
+            ->when($this->genre !== '', fn ($query) => $query->inGenre($this->genre))
+            ->with('video')
+            ->withCount(['outgoingEdges', 'incomingEdges', 'sources'])
+            ->limit(self::SEMANTIC_LIMIT)
+            ->get();
+
+        return new LengthAwarePaginator($nodes, $nodes->count(), self::SEMANTIC_LIMIT, 1);
+    }
+
+    /**
+     * @return LengthAwarePaginator<int, KnowledgeNode>
+     */
+    private function matchingNodes(): LengthAwarePaginator
+    {
+        $codeLinkMatches = fn ($query) => $query
+            ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
+            ->where(fn ($q) => $q->whereLike('path', '%'.trim($this->q).'%')->orWhere('graphify_node_id', trim($this->q)));
+
+        return KnowledgeNode::query()
+            ->when($this->status !== '' && ! $this->searchingCode(), fn ($query) => $query->where('status', $this->status))
+            ->when($this->type !== '', fn ($query) => $query->where('node_type', $this->type))
+            ->when($this->genre !== '', fn ($query) => $query->inGenre($this->genre))
+            ->when(trim($this->q) !== '', fn ($query) => $query->where(fn ($q) => $q
+                ->whereLike('title', '%'.trim($this->q).'%')
+                ->orWhereHas('codeLinks', $codeLinkMatches)))
+            ->when(trim($this->q) !== '', fn ($query) => $query->with(['codeLinks' => $codeLinkMatches]))
+            ->with('video')
+            ->withCount(['outgoingEdges', 'incomingEdges', 'sources'])
+            ->orderByRaw("case status when 'candidate' then 0 when 'confirmed' then 1 else 2 end")
+            ->latest('id')
+            ->paginate(20);
     }
 
     /**
@@ -170,14 +231,36 @@ new #[Title('知識')] class extends Component
                 <option value="{{ $value }}">{{ $label }}</option>
             @endforeach
         </select>
+        {{-- 意味で検索するときは、入力のたびに埋め込みの API を呼ばないよう、Enter かフォーカスを外したときに検索する。 --}}
         <input
             type="search"
-            wire:model.live.debounce.300ms="q"
-            placeholder="名称・ファイルのパスで検索"
+            @if ($semantic) wire:model.change="q" @else wire:model.live.debounce.300ms="q" @endif
+            placeholder="{{ $semantic ? '意味で検索（Enter で検索）' : '名称・ファイルのパスで検索' }}"
             aria-label="名称・ファイルのパスで検索"
             class="w-full rounded-sm border border-[#19140035] bg-white px-3 py-1 sm:w-56 dark:border-[#3E3E3A] dark:bg-[#161615]"
         >
+        @if (app(KnowledgeEmbedder::class)->enabled())
+            <label class="flex items-center gap-1 whitespace-nowrap text-xs">
+                <input type="checkbox" wire:model.live="semantic" class="rounded-sm">
+                意味で検索
+            </label>
+        @endif
     </div>
+
+    @if ($semantic)
+        <x-ai-thinking wire:loading.inline-flex wire:target="q, semantic" label="AI が意味の近いノードを探しています…" />
+    @endif
+    {{-- 埋め込みを先に作る（作れなかったときのエラーを、すぐ下に出すため）。 --}}
+    @if ($this->semanticVector !== null)
+        <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">「{{ trim($q) }}」と意味の近いノードを、類似度の高い順に表示しています（類似度 {{ $this::SEMANTIC_MIN_SIMILARITY }} 以上、最大 {{ $this::SEMANTIC_LIMIT }} 件）。</p>
+    @endif
+    @error('semantic')
+        <p class="text-sm text-red-600">{{ $message }}</p>
+    @enderror
+
+    @if ($status === KnowledgeNode::STATUS_CONFIRMED)
+        <livewire:knowledge.chat :genre="$genre" />
+    @endif
 
     @error('action')
         <p class="text-sm text-red-600">{{ $message }}</p>
@@ -198,6 +281,9 @@ new #[Title('知識')] class extends Component
                         <span class="w-16 shrink-0 text-xs text-[#706f6c] dark:text-[#A1A09A]">{{ $node->typeLabel() }}</span>
                         <a href="{{ route('knowledge.show', $node) }}" wire:navigate class="min-w-0 flex-1 truncate font-medium hover:underline">{{ $node->title }}</a>
                         <span class="flex shrink-0 items-center gap-3">
+                            @isset($node->similarity)
+                                <span class="whitespace-nowrap font-mono text-xs text-blue-700 dark:text-blue-400" title="意味の近さ（0〜1）">類似度 {{ number_format($node->similarity, 2) }}</span>
+                            @endisset
                             @if ($node->isPersonal())
                                 <span class="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">本人だけ</span>
                             @endif

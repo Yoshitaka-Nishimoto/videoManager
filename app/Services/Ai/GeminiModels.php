@@ -13,6 +13,7 @@ use LogicException;
  * すべて失敗したら最後の例外を投げる（ジョブ側で時間をおいて再試行するか、失敗として記録する）。
  *
  * モデルは config/services.php の video_analyzer.gemini_model / gemini_fallback_models で決める。
+ * 文章の分析を OpenAI に切り替えたとき（text_provider）は、openai_model だけを試す。
  */
 final class GeminiModels
 {
@@ -24,14 +25,6 @@ final class GeminiModels
         private readonly ?string $model = null,
         private readonly array $fallbackModels = [],
     ) {}
-
-    public static function fromConfig(): self
-    {
-        return new self(
-            config('services.video_analyzer.gemini_model') ?: null,
-            config('services.video_analyzer.gemini_fallback_models', []),
-        );
-    }
 
     /**
      * モデルを順に試し、最初に成功した結果と、そのモデルを返す。

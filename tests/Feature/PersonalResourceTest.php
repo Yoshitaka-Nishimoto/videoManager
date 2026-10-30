@@ -151,6 +151,27 @@ class PersonalResourceTest extends TestCase
         $this->get(route('knowledge.show', KnowledgeNode::where('title', 'ALP高値の確認')->withoutGlobalScopes()->sole()))->assertNotFound();
     }
 
+    public function test_text_analyses_can_be_switched_to_openai(): void
+    {
+        config(['services.video_analyzer.driver' => 'gemini', 'services.video_analyzer.text_provider' => 'openai']);
+        $video = $this->uploadedFile();
+
+        PersonalDataAnalyst::fake([[
+            'summary' => 'ALP が上限を外れている。',
+            'topics' => ['肝機能'],
+            'key_points' => [['point' => 'ALP が上限値を上回っている', 'quote' => 'ALP(アルカリフォスファターゼ) | 115 H | 113 | 38']],
+            'concepts' => [],
+        ]]);
+
+        $this->actingAs($this->owner);
+        Queue::fake();
+        Livewire::test('pages::videos.show', ['video' => $video])->call('analyze');
+        Queue::pushed(AnalyzeVideo::class)->each(fn (AnalyzeVideo $job) => app()->call([$job, 'handle']));
+
+        PersonalDataAnalyst::assertPrompted(fn (AgentPrompt $prompt) => $prompt->provider->name() === 'openai');
+        $this->assertSame('ALP が上限を外れている。', $video->analyses()->sole()->summary);
+    }
+
     public function test_a_shared_analysis_never_reuses_someone_elses_personal_concept(): void
     {
         config(['services.video_analyzer.driver' => 'gemini']);

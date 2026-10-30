@@ -231,6 +231,9 @@ new #[Title('情報源の詳細')] class extends Component
                                         <span class="block h-full bg-[#1b1b18] transition-all dark:bg-[#EDEDEC]" style="width: {{ $analysis->progress }}%"></span>
                                     </span>
                                     <span class="ml-1 text-xs">{{ $analysis->progress }}%</span>
+                                    @if ($analysis->status === VideoAnalysis::STATUS_RUNNING)
+                                        <x-ai-thinking class="mt-1 flex" label="AI が分析しています…" />
+                                    @endif
                                 @endif
                                 @if ($analysis->error_message)
                                     <p class="text-xs text-red-600">{{ $analysis->error_message }}</p>

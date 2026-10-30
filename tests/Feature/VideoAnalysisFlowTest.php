@@ -59,14 +59,19 @@ class VideoAnalysisFlowTest extends TestCase
     public function test_a_second_request_is_rejected_while_analysis_is_in_progress(): void
     {
         Queue::fake();
-        VideoAnalysis::factory()->for($this->video)->running()->create();
+        $running = VideoAnalysis::factory()->for($this->video)->running()->create();
 
         Livewire::test('pages::videos.show', ['video' => $this->video])
+            ->assertSee('AI が分析しています…')
             ->call('analyze')
             ->assertHasErrors('analysis');
 
         $this->assertSame(1, $this->video->analyses()->count());
         Queue::assertNothingPushed();
+
+        // 終わると、考え中の表示は消える。
+        $running->update(['status' => VideoAnalysis::STATUS_FAILED]);
+        Livewire::test('pages::videos.show', ['video' => $this->video])->assertDontSee('AI が分析しています…');
     }
 
     public function test_the_job_stores_the_result_and_creates_knowledge_candidates_with_sources(): void

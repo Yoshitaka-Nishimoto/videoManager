@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Services\Ai\GeminiModels;
+use App\Services\Ai\TextAi;
 use App\Services\Analysis\DummyVideoAnalyzer;
 use App\Services\Analysis\GeminiPersonalFileAnalyzer;
 use App\Services\Analysis\GeminiVideoAnalyzer;
@@ -18,6 +18,7 @@ use App\Services\Web\WebPageClient;
 use App\Services\YouTube\YouTubeClient;
 use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Ai\Enums\Lab;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -41,24 +42,29 @@ class AppServiceProvider extends ServiceProvider
                     config('services.video_analyzer.gemini_model') ?: null,
                     config('services.video_analyzer.gemini_fallback_models'),
                 ),
-                webPage: new GeminiWebPageAnalyzer(
-                    $app->make(WebPageClient::class),
-                    config('services.video_analyzer.gemini_model') ?: null,
-                    config('services.video_analyzer.gemini_fallback_models'),
-                ),
-                file: new GeminiPersonalFileAnalyzer(
-                    $app->make(PersonalFileReader::class),
-                    config('services.video_analyzer.gemini_model') ?: null,
-                    config('services.video_analyzer.gemini_fallback_models'),
-                ),
+                // Web ページ・個人のファイルは文章なので、text_provider の AI で分析する。
+                webPage: new GeminiWebPageAnalyzer($app->make(WebPageClient::class), ...$this->textAiArguments()),
+                file: new GeminiPersonalFileAnalyzer($app->make(PersonalFileReader::class), ...$this->textAiArguments()),
             ),
             default => $app->make(DummyVideoAnalyzer::class),
         });
 
         $this->app->bind(ScriptWriter::class, fn ($app) => match (config('services.script_writer.driver')) {
-            'gemini' => new GeminiScriptWriter(GeminiModels::fromConfig()),
+            'gemini' => new GeminiScriptWriter(TextAi::fromConfig()->models(), TextAi::fromConfig()->provider),
             default => $app->make(DummyScriptWriter::class),
         });
+    }
+
+    /**
+     * 文章の分析のコンストラクタに渡す、AI とモデル（TextAi）。
+     *
+     * @return array{model: ?string, fallbackModels: list<string>, provider: Lab}
+     */
+    private function textAiArguments(): array
+    {
+        $text = TextAi::fromConfig();
+
+        return ['model' => $text->model, 'fallbackModels' => $text->fallbackModels, 'provider' => $text->provider];
     }
 
     /**

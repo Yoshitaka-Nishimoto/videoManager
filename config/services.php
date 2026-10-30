@@ -48,9 +48,14 @@ return [
         'driver' => env('VIDEO_ANALYZER', 'dummy'),
         'gemini_model' => env('GEMINI_ANALYSIS_MODEL'),
         'gemini_fallback_models' => array_values(array_filter(array_map('trim', explode(',', (string) env('GEMINI_ANALYSIS_FALLBACK_MODELS', 'gemini-3.5-flash,gemini-3.7-flash,gemini-3.8-flash'))))),
+        // 文章だけを渡す分析（Web ページ・個人のファイル）と台本の候補に使う AI（gemini / openai）。
+        // YouTube の動画を URL のまま見られるのは Gemini だけなので、動画の分析はこの設定によらず Gemini。
+        'text_provider' => env('TEXT_AI_PROVIDER', 'gemini'),
+        // text_provider が openai のときのモデル（空なら SDK の既定）。
+        'openai_model' => env('OPENAI_ANALYSIS_MODEL'),
     ],
 
-    // 台本の候補を作る実装（dummy / gemini）。指定がなければ動画分析と同じ。Gemini のモデルは上の設定を使う。
+    // 台本の候補を作る実装（dummy / gemini）。指定がなければ動画分析と同じ。AI とモデルは上の設定を使う。
     'script_writer' => [
         'driver' => env('SCRIPT_WRITER', env('VIDEO_ANALYZER', 'dummy')),
     ],

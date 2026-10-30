@@ -8,6 +8,7 @@ use App\Models\KnowledgeCodeLink;
 use App\Models\KnowledgeEdge;
 use App\Models\KnowledgeNode;
 use App\Models\KnowledgeRelationType;
+use App\Models\User;
 use App\Models\Video;
 use App\Models\VideoAnalysis;
 use App\Services\Analysis\AnalysisResult;
@@ -18,6 +19,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Ai\Embeddings;
 use Laravel\Ai\Prompts\EmbeddingsPrompt;
+use Livewire\Livewire;
+use RuntimeException;
 use Tests\TestCase;
 
 class KnowledgeEmbeddingTest extends TestCase
@@ -120,6 +123,50 @@ class KnowledgeEmbeddingTest extends TestCase
         $titles = $this->embedder->search('品質をどう確かめるか')->pluck('title')->sort()->values()->all();
 
         $this->assertSame(['入力画像の品質確認', '画質の動画の分析'], $titles);
+    }
+
+    public function test_the_knowledge_list_can_search_by_meaning(): void
+    {
+        config(['services.knowledge_embeddings.enabled' => true]);
+        Queue::fake();
+        $user = User::factory()->create();
+        KnowledgeNode::factory()->confirmed()->create(['title' => '入力画像の品質確認', 'description' => null]);
+        KnowledgeNode::factory()->confirmed()->create(['title' => 'モデル階層による役割分担', 'description' => null]);
+        KnowledgeNode::factory()->confirmed()->create(['title' => '他人の品質の記録', 'description' => null, 'owner_id' => User::factory()->create()->id]);
+        KnowledgeNode::factory()->create(['title' => '候補の品質チェック', 'description' => null]);
+        $this->embedder->embed(KnowledgeNode::withoutGlobalScopes()->get());
+
+        $this->actingAs($user);
+
+        // 名称の文字では一致しない。
+        Livewire::test('pages::knowledge.index', ['status' => KnowledgeNode::STATUS_CONFIRMED])
+            ->set('q', '画質をどう確かめるか')
+            ->assertSee('該当するノードはありません。');
+
+        Livewire::test('pages::knowledge.index', ['status' => KnowledgeNode::STATUS_CONFIRMED])
+            ->set('semantic', true)
+            ->set('q', '品質をどう確かめるか')
+            ->assertSee('入力画像の品質確認')
+            ->assertSee('類似度 1.00')
+            ->assertDontSee('モデル階層による役割分担')
+            ->assertDontSee('他人の品質の記録')
+            ->assertDontSee('候補の品質チェック');
+    }
+
+    public function test_the_knowledge_list_falls_back_to_the_title_when_the_embedding_fails(): void
+    {
+        config(['services.knowledge_embeddings.enabled' => true]);
+        Queue::fake();
+        Embeddings::fake(fn () => throw new RuntimeException('クレジットが残っていません'));
+        KnowledgeNode::factory()->confirmed()->create(['title' => '入力画像の品質確認']);
+
+        $this->actingAs(User::factory()->create());
+
+        Livewire::test('pages::knowledge.index', ['status' => KnowledgeNode::STATUS_CONFIRMED])
+            ->set('semantic', true)
+            ->set('q', '品質')
+            ->assertSee('意味で検索できなかったため、名称で検索しています')
+            ->assertSee('入力画像の品質確認');
     }
 
     public function test_the_command_embeds_stale_nodes_lists_short_descriptions_and_shows_duplicates(): void
