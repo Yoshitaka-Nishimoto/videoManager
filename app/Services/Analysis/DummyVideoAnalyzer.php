@@ -48,10 +48,10 @@ class DummyVideoAnalyzer implements VideoAnalyzer
         $topics = $this->pick(self::TOPICS, 3, $seed);
 
         $this->step($reportProgress, 45);
-        // Web ページには時刻がないので、要点に時刻を付けない（引用もダミーでは作らない）。
+        // Web ページ・ファイルには時刻がないので、要点に時刻を付けない（引用もダミーでは作らない）。
         $keyPoints = collect([0.1, 0.35, 0.6, 0.85])
             ->map(fn (float $ratio, int $index) => [
-                'start_seconds' => $start = $video->isWebPage() ? null : (int) ($duration * $ratio),
+                'start_seconds' => $start = $video->isDocument() ? null : (int) ($duration * $ratio),
                 'end_seconds' => $start === null ? null : min($duration, $start + 30),
                 'point' => sprintf('%s の説明（要点%d）', $topics[$index % count($topics)], $index + 1),
             ])
@@ -71,7 +71,11 @@ class DummyVideoAnalyzer implements VideoAnalyzer
             '「%s」は、%sについて解説した%sです。特に「%s」と「%s」が重要な概念として扱われています。',
             Str::limit($video->title, 60),
             implode('・', $topics),
-            $video->isWebPage() ? 'ページ' : '動画',
+            match (true) {
+                $video->isWebPage() => 'ページ',
+                $video->isFile() => 'ファイル',
+                default => '動画',
+            },
             $concepts[0]['title'],
             $concepts[1]['title'],
         );

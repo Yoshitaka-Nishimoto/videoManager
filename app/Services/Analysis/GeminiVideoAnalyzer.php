@@ -60,7 +60,7 @@ class GeminiVideoAnalyzer implements VideoAnalyzer
         return implode("\n", [
             "動画タイトル：{$video->title}",
             '動画の長さ：'.($video->duration_seconds !== null ? "{$video->duration_seconds}秒" : '不明'),
-            $this->existingConceptsLine(),
+            $this->existingConceptsLine($video),
             '',
             'この動画を分析してください。',
         ]);

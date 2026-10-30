@@ -6,7 +6,6 @@ use App\Models\Video;
 use App\Models\VideoProduction;
 use App\Services\Knowledge\KnowledgeCurator;
 use App\Services\Knowledge\KnowledgeRuleViolation;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -62,7 +61,7 @@ new #[Title('知識')] class extends Component
         $nodes = KnowledgeNode::query()
             ->when($this->status !== '' && ! $this->searchingCode(), fn ($query) => $query->where('status', $this->status))
             ->when($this->type !== '', fn ($query) => $query->where('node_type', $this->type))
-            ->when($this->genre !== '', fn ($query) => $this->whereInGenre($query))
+            ->when($this->genre !== '', fn ($query) => $query->inGenre($this->genre))
             ->when(trim($this->q) !== '', fn ($query) => $query->where(fn ($q) => $q
                 ->whereLike('title', '%'.trim($this->q).'%')
                 ->orWhereHas('codeLinks', $codeLinkMatches)))
@@ -110,31 +109,11 @@ new #[Title('知識')] class extends Component
     {
         return KnowledgeNode::query()
             ->when($this->type !== '', fn ($query) => $query->where('node_type', $this->type))
-            ->when($this->genre !== '', fn ($query) => $this->whereInGenre($query))
+            ->when($this->genre !== '', fn ($query) => $query->inGenre($this->genre))
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status')
             ->all();
-    }
-
-    /**
-     * 選んだジャンルの知識に絞る。動画・分析ノードはその動画、概念などは出典（自身と廃止していない関係）の動画、
-     * 設計判断は作った制作のジャンルで判定する。
-     *
-     * @param  Builder<KnowledgeNode>  $query
-     */
-    private function whereInGenre(Builder $query): void
-    {
-        $inGenre = fn ($q) => $q->where('genre', $this->genre);
-
-        $query->where(fn ($q) => $q
-            ->whereHas('video', $inGenre)
-            ->orWhereHas('videoAnalysis.video', $inGenre)
-            ->orWhereHas('sources.video', $inGenre)
-            ->orWhereHas('outgoingEdges', fn ($edges) => $edges
-                ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
-                ->whereHas('sources.video', $inGenre))
-            ->orWhereHas('productions', $inGenre));
     }
 
     /**
@@ -219,6 +198,9 @@ new #[Title('知識')] class extends Component
                         <span class="w-16 shrink-0 text-xs text-[#706f6c] dark:text-[#A1A09A]">{{ $node->typeLabel() }}</span>
                         <a href="{{ route('knowledge.show', $node) }}" wire:navigate class="min-w-0 flex-1 truncate font-medium hover:underline">{{ $node->title }}</a>
                         <span class="flex shrink-0 items-center gap-3">
+                            @if ($node->isPersonal())
+                                <span class="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">本人だけ</span>
+                            @endif
                             <x-knowledge.status-badge :status="$node->status" />
                             <span class="whitespace-nowrap text-xs text-[#706f6c] dark:text-[#A1A09A]">関係 {{ $node->outgoing_edges_count + $node->incoming_edges_count }} · 出典 {{ $node->sources_count }}</span>
                             @if ($node->status === KnowledgeNode::STATUS_CANDIDATE)

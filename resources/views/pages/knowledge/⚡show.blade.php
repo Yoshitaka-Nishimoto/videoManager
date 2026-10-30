@@ -485,6 +485,9 @@ new #[Title('知識の詳細')] class extends Component
                 <div class="flex flex-wrap items-center gap-2 text-xs">
                     <span class="{{ $muted }}">{{ $node->typeLabel() }}</span>
                     <x-knowledge.status-badge :status="$node->status" />
+                    @if ($node->isPersonal())
+                        <span class="rounded-full bg-amber-100 px-2 py-0.5 text-amber-900 dark:bg-amber-950 dark:text-amber-200" title="個人の情報源から作った知識です。あなただけが見られます">本人だけ</span>
+                    @endif
                     <span class="{{ $muted }}">提案：{{ $node->proposed_by === KnowledgeNode::PROPOSED_BY_AI ? 'AI' : '人' }}</span>
                 </div>
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOwner;
 use Database\Factories\VideoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,16 +31,20 @@ use Illuminate\Support\Str;
     'comment_count',
     'statistics_fetched_at',
     'registered_by',
+    'owner_id',
 ])]
 class Video extends Model
 {
     /** @use HasFactory<VideoFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasOwner, SoftDeletes;
 
     public const SOURCE_YOUTUBE = 'youtube';
 
     /** 公式サイト・GitHub などの Web ページ。本文を取得して分析する。 */
     public const SOURCE_WEB = 'web';
+
+    /** 利用者がアップロードした個人のファイル（血液検査の結果の CSV など）。持ち主だけが見られる。 */
+    public const SOURCE_FILE = 'file';
 
     public const SOURCE_RUNWAY = 'runway';
 
@@ -109,12 +114,29 @@ class Video extends Model
         return $this->source_type === self::SOURCE_WEB;
     }
 
+    public function isFile(): bool
+    {
+        return $this->source_type === self::SOURCE_FILE;
+    }
+
+    /**
+     * 再生時間のない、文章として読む情報源（Web ページ・ファイル）か。
+     */
+    public function isDocument(): bool
+    {
+        return $this->isWebPage() || $this->isFile();
+    }
+
     /**
      * 情報源の種類の表示名。
      */
     public function sourceLabel(): string
     {
-        return $this->isWebPage() ? 'Web' : '動画';
+        return match (true) {
+            $this->isWebPage() => 'Web',
+            $this->isFile() => 'ファイル',
+            default => '動画',
+        };
     }
 
     /**

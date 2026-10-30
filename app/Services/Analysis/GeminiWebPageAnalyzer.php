@@ -72,7 +72,7 @@ class GeminiWebPageAnalyzer implements VideoAnalyzer
             "URL：{$video->url}",
             ...($content->sourceUrl !== $video->url ? ["本文の取得元：{$content->sourceUrl}"] : []),
             ...($content->truncated ? ['注意：本文が長いため、先頭の '.number_format(WebPageClient::MAX_TEXT_LENGTH).' 文字だけを渡しています。'] : []),
-            $this->existingConceptsLine(),
+            $this->existingConceptsLine($video),
             '',
             'このページを分析してください。',
         ]);
@@ -85,22 +85,7 @@ class GeminiWebPageAnalyzer implements VideoAnalyzer
      */
     private function toResult(array $output, WebPageContent $content, string $model, string $prompt): AnalysisResult
     {
-        $flatText = $this->flatten($content->text);
-
-        $keyPoints = collect($output['key_points'] ?? [])
-            ->filter(fn ($point) => is_array($point) && filled($point['point'] ?? null))
-            ->map(function (array $point) use ($flatText) {
-                $quote = trim((string) ($point['quote'] ?? ''));
-
-                return [
-                    'start_seconds' => null,
-                    'end_seconds' => null,
-                    'point' => trim($point['point']),
-                    'quote' => $quote !== '' && str_contains($flatText, $this->flatten($quote)) ? $quote : null,
-                ];
-            })
-            ->values()
-            ->all();
+        $keyPoints = $this->quotedKeyPoints($output, $content->text);
 
         return new AnalysisResult(
             summary: trim($output['summary'] ?? ''),
@@ -111,13 +96,5 @@ class GeminiWebPageAnalyzer implements VideoAnalyzer
             prompt: $prompt,
             source: $content,
         );
-    }
-
-    /**
-     * 空白の違いで引用の照合が外れないよう、空白を詰める。
-     */
-    private function flatten(string $text): string
-    {
-        return trim(preg_replace('/\s+/u', ' ', $text));
     }
 }

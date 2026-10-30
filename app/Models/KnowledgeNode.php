@@ -3,8 +3,11 @@
 namespace App\Models;
 
 use App\Jobs\EmbedKnowledgeNodes;
+use App\Models\Concerns\HasOwner;
 use Database\Factories\KnowledgeNodeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsVector;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,11 +30,12 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'proposed_by',
     'confirmed_by',
     'confirmed_at',
+    'owner_id',
 ])]
 class KnowledgeNode extends Model
 {
     /** @use HasFactory<KnowledgeNodeFactory> */
-    use HasFactory;
+    use HasFactory, HasOwner;
 
     public const TYPE_VIDEO = 'video';
 
@@ -58,6 +62,20 @@ class KnowledgeNode extends Model
      */
     protected static function booted(): void
     {
+        // 個人の情報源の動画・分析ノードは、情報源の持ち主だけが見られるようにする。
+        static::creating(function (KnowledgeNode $node) {
+            if ($node->owner_id !== null) {
+                return;
+            }
+
+            $videoId = $node->video_id
+                ?? ($node->video_analysis_id !== null ? VideoAnalysis::withTrashed()->whereKey($node->video_analysis_id)->value('video_id') : null);
+
+            if ($videoId !== null) {
+                $node->owner_id = Video::withoutGlobalScopes()->whereKey($videoId)->value('owner_id');
+            }
+        });
+
         // wasRecentlyCreated は作成後の保存でも true のままなので、作成と更新を分けて判定する。
         static::created(fn (KnowledgeNode $node) => EmbedKnowledgeNodes::dispatchFor([$node->id]));
         static::updated(function (KnowledgeNode $node) {
@@ -109,6 +127,27 @@ class KnowledgeNode extends Model
         return $this->node_type === self::TYPE_VIDEO && $this->video !== null
             ? $this->video->sourceLabel()
             : self::typeLabelFor($this->node_type);
+    }
+
+    /**
+     * 選んだジャンルの知識に絞る。動画・分析ノードはその動画、概念などは出典（自身と廃止していない関係）の動画、
+     * 設計判断は作った制作のジャンルで判定する。
+     *
+     * @param  Builder<static>  $query
+     */
+    #[Scope]
+    protected function inGenre(Builder $query, string $genre): void
+    {
+        $inGenre = fn ($q) => $q->where('genre', $genre);
+
+        $query->where(fn ($q) => $q
+            ->whereHas('video', $inGenre)
+            ->orWhereHas('videoAnalysis.video', $inGenre)
+            ->orWhereHas('sources.video', $inGenre)
+            ->orWhereHas('outgoingEdges', fn ($edges) => $edges
+                ->where('status', '!=', self::STATUS_DEPRECATED)
+                ->whereHas('sources.video', $inGenre))
+            ->orWhereHas('productions', $inGenre));
     }
 
     public static function statusLabelFor(string $status): string

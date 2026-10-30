@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use App\Models\Video;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -41,6 +42,27 @@ class VideoFactory extends Factory
             'channel_title' => 'Example Docs',
             'duration_seconds' => null,
             'thumbnail_url' => null,
+        ]);
+    }
+
+    /**
+     * 利用者がアップロードした個人のファイル。持ち主だけが見られる。
+     */
+    public function personalFile(User $owner, string $path = 'resources/test/blood.csv'): static
+    {
+        return $this->state(fn () => [
+            'source_type' => Video::SOURCE_FILE,
+            'youtube_id' => null,
+            'url' => null,
+            'storage_path' => $path,
+            'title' => 'blood.csv',
+            'channel_title' => null,
+            'genre' => 'healthy_longevity',
+            'duration_seconds' => null,
+            'published_at' => null,
+            'thumbnail_url' => null,
+            'owner_id' => $owner->id,
+            'registered_by' => $owner->id,
         ]);
     }
 }

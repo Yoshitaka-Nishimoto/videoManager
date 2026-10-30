@@ -119,8 +119,19 @@ new #[Title('情報源の詳細')] class extends Component
             <dl class="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
                 <dt class="text-[#706f6c] dark:text-[#A1A09A]">種類</dt>
                 <dd>{{ $video->sourceLabel() }}</dd>
-                <dt class="text-[#706f6c] dark:text-[#A1A09A]">{{ $video->isWebPage() ? 'サイト' : 'チャンネル' }}</dt>
-                <dd>{{ $video->channel_title ?? '—' }}</dd>
+                <dt class="text-[#706f6c] dark:text-[#A1A09A]">公開範囲</dt>
+                <dd>
+                    @if ($video->isPersonal())
+                        <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">本人だけ</span>
+                        <span class="text-xs text-[#706f6c] dark:text-[#A1A09A]">この情報源と、その分析・知識はあなただけが見られます</span>
+                    @else
+                        全員で共有
+                    @endif
+                </dd>
+                @unless ($video->isFile())
+                    <dt class="text-[#706f6c] dark:text-[#A1A09A]">{{ $video->isWebPage() ? 'サイト' : 'チャンネル' }}</dt>
+                    <dd>{{ $video->channel_title ?? '—' }}</dd>
+                @endunless
                 <dt class="text-[#706f6c] dark:text-[#A1A09A]">ジャンル</dt>
                 <dd>
                     <select wire:model.live="genre" aria-label="ジャンル" class="rounded-sm border border-[#19140035] bg-white px-2 py-0.5 dark:border-[#3E3E3A] dark:bg-[#161615]">
@@ -131,18 +142,25 @@ new #[Title('情報源の詳細')] class extends Component
                     </select>
                     @error('genre') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
                 </dd>
-                @unless ($video->isWebPage())
+                @unless ($video->isDocument())
                     <dt class="text-[#706f6c] dark:text-[#A1A09A]">再生時間</dt>
                     <dd>{{ Video::formatSeconds($video->duration_seconds) }}</dd>
                 @endunless
-                <dt class="text-[#706f6c] dark:text-[#A1A09A]">公開日</dt>
-                <dd>{{ $video->published_at?->format('Y-m-d') ?? '—' }}</dd>
+                @if ($video->isFile())
+                    <dt class="text-[#706f6c] dark:text-[#A1A09A]">登録日</dt>
+                    <dd>{{ $video->created_at?->format('Y-m-d H:i') }}</dd>
+                @else
+                    <dt class="text-[#706f6c] dark:text-[#A1A09A]">公開日</dt>
+                    <dd>{{ $video->published_at?->format('Y-m-d') ?? '—' }}</dd>
+                @endif
                 @if ($video->isWebPage() && $video->description)
                     <dt class="text-[#706f6c] dark:text-[#A1A09A]">説明</dt>
                     <dd>{{ $video->description }}</dd>
                 @endif
-                <dt class="text-[#706f6c] dark:text-[#A1A09A]">{{ $video->isWebPage() ? 'URL' : 'YouTube' }}</dt>
-                <dd><a href="{{ $video->url }}" target="_blank" rel="noopener" class="break-all text-blue-700 hover:underline dark:text-blue-400">{{ $video->url }}</a></dd>
+                @if ($video->url !== null)
+                    <dt class="text-[#706f6c] dark:text-[#A1A09A]">{{ $video->isWebPage() ? 'URL' : 'YouTube' }}</dt>
+                    <dd><a href="{{ $video->url }}" target="_blank" rel="noopener" class="break-all text-blue-700 hover:underline dark:text-blue-400">{{ $video->url }}</a></dd>
+                @endif
                 @if ($video->youtube_id)
                     <dt class="text-[#706f6c] dark:text-[#A1A09A]">統計</dt>
                     <dd class="space-y-1">
@@ -255,8 +273,10 @@ new #[Title('情報源の詳細')] class extends Component
                                 </a>
                             @endif
                             {{ $point['point'] }}
-                            @if (filled($point['quote'] ?? null))
+                            @if (filled($point['quote'] ?? null) && $video->url !== null)
                                 <a href="{{ $video->urlForQuote($point['quote']) }}" target="_blank" rel="noopener" class="mt-0.5 block border-l-2 border-[#19140035] pl-2 text-xs text-[#706f6c] hover:underline dark:border-[#3E3E3A] dark:text-[#A1A09A]">「{{ $point['quote'] }}」</a>
+                            @elseif (filled($point['quote'] ?? null))
+                                <span class="mt-0.5 block border-l-2 border-[#19140035] pl-2 text-xs text-[#706f6c] dark:border-[#3E3E3A] dark:text-[#A1A09A]">「{{ $point['quote'] }}」</span>
                             @endif
                         </li>
                     @endforeach
@@ -269,14 +289,18 @@ new #[Title('情報源の詳細')] class extends Component
 
         @if ($this->latestCompleted->source_text !== null)
             <section class="space-y-2">
-                <h2 class="text-lg font-semibold">分析に使った本文</h2>
+                <h2 class="text-lg font-semibold">{{ $video->isFile() ? '分析に使ったデータ' : '分析に使った本文' }}</h2>
                 <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">
-                    {{ $this->latestCompleted->source_fetched_at?->format('Y-m-d H:i') }} に
-                    <a href="{{ $this->latestCompleted->source_url }}" target="_blank" rel="noopener" class="break-all text-blue-700 hover:underline dark:text-blue-400">{{ $this->latestCompleted->source_url }}</a>
-                    から取得（{{ number_format(mb_strlen($this->latestCompleted->source_text)) }} 文字）
+                    @if ($this->latestCompleted->source_url !== null)
+                        {{ $this->latestCompleted->source_fetched_at?->format('Y-m-d H:i') }} に
+                        <a href="{{ $this->latestCompleted->source_url }}" target="_blank" rel="noopener" class="break-all text-blue-700 hover:underline dark:text-blue-400">{{ $this->latestCompleted->source_url }}</a>
+                        から取得（{{ number_format(mb_strlen($this->latestCompleted->source_text)) }} 文字）
+                    @else
+                        {{ $this->latestCompleted->source_fetched_at?->format('Y-m-d H:i') }} にファイルから読み取り（値のない行は除いています）
+                    @endif
                 </p>
                 <details class="rounded-sm border border-[#19140035] dark:border-[#3E3E3A]">
-                    <summary class="cursor-pointer px-3 py-2 text-sm">本文を表示</summary>
+                    <summary class="cursor-pointer px-3 py-2 text-sm">{{ $video->isFile() ? 'データを表示' : '本文を表示' }}</summary>
                     <pre class="max-h-96 overflow-auto whitespace-pre-wrap break-words border-t border-[#19140035] px-3 py-2 text-xs dark:border-[#3E3E3A]">{{ $this->latestCompleted->source_text }}</pre>
                 </details>
             </section>

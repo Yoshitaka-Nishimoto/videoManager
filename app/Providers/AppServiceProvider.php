@@ -4,10 +4,12 @@ namespace App\Providers;
 
 use App\Services\Ai\GeminiModels;
 use App\Services\Analysis\DummyVideoAnalyzer;
+use App\Services\Analysis\GeminiPersonalFileAnalyzer;
 use App\Services\Analysis\GeminiVideoAnalyzer;
 use App\Services\Analysis\GeminiWebPageAnalyzer;
 use App\Services\Analysis\SourceTypeAnalyzer;
 use App\Services\Analysis\VideoAnalyzer;
+use App\Services\Files\PersonalFileReader;
 use App\Services\Runway\RunwayClient;
 use App\Services\Script\DummyScriptWriter;
 use App\Services\Script\GeminiScriptWriter;
@@ -41,6 +43,11 @@ class AppServiceProvider extends ServiceProvider
                 ),
                 webPage: new GeminiWebPageAnalyzer(
                     $app->make(WebPageClient::class),
+                    config('services.video_analyzer.gemini_model') ?: null,
+                    config('services.video_analyzer.gemini_fallback_models'),
+                ),
+                file: new GeminiPersonalFileAnalyzer(
+                    $app->make(PersonalFileReader::class),
                     config('services.video_analyzer.gemini_model') ?: null,
                     config('services.video_analyzer.gemini_fallback_models'),
                 ),

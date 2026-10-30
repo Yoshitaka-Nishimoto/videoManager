@@ -1,26 +1,37 @@
 <?php
 
+use App\Actions\Videos\RegisterPersonalFile;
 use App\Actions\Videos\RegisterWebPage;
 use App\Actions\Videos\RegisterYouTubeVideo;
 use App\Models\Video;
 use App\Models\VideoProduction;
+use App\Services\Files\PersonalFileException;
+use App\Services\Files\PersonalFileReader;
 use App\Services\Web\WebPageException;
 use App\Services\YouTube\YouTubeException;
 use App\Services\YouTube\YouTubeVideoId;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 new #[Title('情報源一覧')] class extends Component
 {
-    use WithPagination;
+    use WithFileUploads, WithPagination;
 
     #[Validate('required|string|max:2048', as: 'URL')]
     public string $url = '';
+
+    /** 個人のファイル（血液検査の結果の CSV など）。本人だけが見られる情報源として登録する。 */
+    public ?TemporaryUploadedFile $file = null;
+
+    public string $fileGenre = 'healthy_longevity';
 
     /** 一覧の絞り込み。VideoProduction::GENRES のキー、または未設定（GENRE_NONE）。 */
     #[Url]
@@ -58,6 +69,26 @@ new #[Title('情報源一覧')] class extends Component
 
         $kind = $video->isWebPage() ? 'ページ' : '動画';
         session()->flash('status', $created ? "{$kind}を登録しました。" : "この{$kind}は登録済みです。");
+
+        $this->redirectRoute('videos.show', $video, navigate: true);
+    }
+
+    public function upload(RegisterPersonalFile $register): void
+    {
+        $this->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:'.PersonalFileReader::MAX_KILOBYTES],
+            'fileGenre' => ['nullable', Rule::in(array_keys(VideoProduction::GENRES))],
+        ], attributes: ['file' => 'ファイル', 'fileGenre' => 'ジャンル']);
+
+        try {
+            ['video' => $video, 'created' => $created] = $register->handle($this->file, auth()->user(), $this->fileGenre ?: null);
+        } catch (PersonalFileException $e) {
+            $this->addError('file', $e->getMessage());
+
+            return;
+        }
+
+        session()->flash('status', $created ? 'ファイルを登録しました。あなただけが見られます。' : 'このファイルは登録済みです。');
 
         $this->redirectRoute('videos.show', $video, navigate: true);
     }
@@ -129,6 +160,33 @@ new #[Title('情報源一覧')] class extends Component
             <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
         @enderror
         <p class="mt-2 text-xs text-[#706f6c] dark:text-[#A1A09A]">YouTube 以外の URL は Web ページとして登録し、本文を読んで分析します。ログインが必要なページと PDF にはまだ対応していません。</p>
+
+        <form wire:submit="upload" class="mt-4 flex flex-col gap-2 border-t border-[#19140015] pt-4 sm:flex-row sm:items-center dark:border-[#3E3E3A]">
+            <label for="file" class="shrink-0 text-sm">個人のファイル</label>
+            <input
+                id="file"
+                type="file"
+                wire:model="file"
+                accept=".csv,text/csv,text/plain"
+                class="w-full text-sm file:mr-3 file:rounded-sm file:border file:border-[#19140035] file:bg-white file:px-3 file:py-1 dark:file:border-[#3E3E3A] dark:file:bg-[#161615]"
+            >
+            <select wire:model="fileGenre" aria-label="ファイルのジャンル" class="rounded-sm border border-[#19140035] bg-white px-2 py-2 text-sm dark:border-[#3E3E3A] dark:bg-[#161615]">
+                <option value="">ジャンル未設定</option>
+                @foreach (VideoProduction::GENRES as $key => $name)
+                    <option value="{{ $key }}">{{ $name }}</option>
+                @endforeach
+            </select>
+            <button
+                type="submit"
+                class="shrink-0 rounded-sm border border-[#1b1b18] px-5 py-2 text-sm hover:bg-[#f0f0ec] disabled:opacity-50 dark:border-[#EDEDEC] dark:hover:bg-[#1f1f1e]"
+                wire:loading.attr="disabled"
+                wire:target="file,upload"
+            >アップロード</button>
+        </form>
+        @error('file')
+            <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+        @enderror
+        <p class="mt-2 text-xs text-[#706f6c] dark:text-[#A1A09A]">血液検査の結果などの CSV（1 行目が見出し）を登録します。登録したファイルと、その分析・知識は、あなただけが見られます。</p>
     </section>
 
     <section>
@@ -160,7 +218,14 @@ new #[Title('情報源一覧')] class extends Component
                                 <p class="line-clamp-2 text-sm font-medium">{{ $video->title }}</p>
                                 <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">
                                     <span class="mr-1 rounded-full border border-[#19140035] px-1.5 dark:border-[#3E3E3A]">{{ $video->sourceLabel() }}</span>
-                                    {{ $video->channel_title ?? '—' }}{{ $video->isWebPage() ? '' : ' · '.Video::formatSeconds($video->duration_seconds) }}
+                                    @if ($video->isPersonal())
+                                        <span class="mr-1 rounded-full bg-amber-100 px-1.5 text-amber-900 dark:bg-amber-950 dark:text-amber-200">本人だけ</span>
+                                    @endif
+                                    @if ($video->isFile())
+                                        {{ $video->created_at?->format('Y-m-d') }} 登録
+                                    @else
+                                        {{ $video->channel_title ?? '—' }}{{ $video->isDocument() ? '' : ' · '.Video::formatSeconds($video->duration_seconds) }}
+                                    @endif
                                 </p>
                                 @if ($video->statistics_fetched_at)
                                     <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">

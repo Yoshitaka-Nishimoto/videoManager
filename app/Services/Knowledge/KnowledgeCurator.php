@@ -68,23 +68,28 @@ class KnowledgeCurator
         $this->ensureNotDeprecated($from);
         $this->ensureNotDeprecated($into, '統合先のノードは廃止されています。');
 
+        // 共有のノードを個人のノードに統合すると、共有の知識が他の利用者から見えなくなるため。
+        if ($into->owner_id !== null && $from->owner_id !== $into->owner_id) {
+            throw new KnowledgeRuleViolation('共有のノードは、個人のノードには統合できません。個人のノードを共有のノードに統合してください。');
+        }
+
         DB::transaction(function () use ($from, $into, $user, $reason) {
-            $edges = KnowledgeEdge::query()
-                ->where('source_node_id', $from->id)
-                ->orWhere('target_node_id', $from->id)
+            // 他の利用者の個人の関係・出典も付け替えるため、見える範囲で絞らずに扱う（持ち主はそのまま残る）。
+            $edges = KnowledgeEdge::withoutGlobalScopes()
+                ->where(fn ($query) => $query->where('source_node_id', $from->id)->orWhere('target_node_id', $from->id))
                 ->get();
 
             foreach ($edges as $edge) {
                 $this->moveEdge($edge, $from, $into, $user);
             }
 
-            KnowledgeSource::query()
+            KnowledgeSource::withoutGlobalScopes()
                 ->where('sourceable_type', $from->getMorphClass())
                 ->where('sourceable_id', $from->id)
                 ->update(['sourceable_id' => $into->id]);
 
             // 以前 $from に統合されていたノードも、新しい統合先を指すようにする。
-            KnowledgeNode::query()->where('merged_into_id', $from->id)->update(['merged_into_id' => $into->id]);
+            KnowledgeNode::withoutGlobalScopes()->where('merged_into_id', $from->id)->update(['merged_into_id' => $into->id]);
 
             $before = $from->only(['status', 'merged_into_id']);
             $from->update(['status' => KnowledgeNode::STATUS_DEPRECATED, 'merged_into_id' => $into->id]);
@@ -124,7 +129,11 @@ class KnowledgeCurator
             throw new KnowledgeRuleViolation("「{$relationType->label}」は、この種類のノードの組み合わせには使えません。");
         }
 
-        $exists = KnowledgeEdge::query()
+        if ($source->owner_id !== null && $target->owner_id !== null && $source->owner_id !== $target->owner_id) {
+            throw new KnowledgeRuleViolation('持ち主の違う個人のノードどうしは、関係でつなげません。');
+        }
+
+        $exists = KnowledgeEdge::withoutGlobalScopes()
             ->where('source_node_id', $source->id)
             ->where('target_node_id', $target->id)
             ->where('relation_type_id', $relationType->id)
@@ -170,6 +179,7 @@ class KnowledgeCurator
             ?? throw new KnowledgeRuleViolation('関係の種類「着想元とする」がありません。KnowledgeRelationTypeSeeder を実行してください。');
 
         return DB::transaction(function () use ($concept, $title, $description, $user, $reason, $relationType) {
+            // 個人の概念から作った設計判断は、名称から本人の状態が分かることがあるので、本人だけのものにする。
             $decision = KnowledgeNode::query()->create([
                 'node_type' => KnowledgeNode::TYPE_DECISION,
                 'title' => $title,
@@ -178,6 +188,7 @@ class KnowledgeCurator
                 'proposed_by' => KnowledgeNode::PROPOSED_BY_HUMAN,
                 'confirmed_by' => $user->id,
                 'confirmed_at' => now(),
+                'owner_id' => $concept->owner_id,
             ]);
 
             $this->recordRevision($decision, KnowledgeRevision::ACTION_CREATE, null, $decision->only(['node_type', 'title', 'description', 'status']), $user, $reason ?? "概念「{$concept->title}」から作成");
@@ -210,6 +221,7 @@ class KnowledgeCurator
                 'proposed_by' => KnowledgeNode::PROPOSED_BY_HUMAN,
                 'confirmed_by' => $user->id,
                 'confirmed_at' => now(),
+                'owner_id' => $decision->owner_id,
             ]);
 
             $this->recordRevision($implementation, KnowledgeRevision::ACTION_CREATE, null, $implementation->only(['node_type', 'title', 'description', 'status']), $user, $reason ?? "設計判断「{$decision->title}」から作成");
@@ -290,7 +302,8 @@ class KnowledgeCurator
 
             $visited = [...$visited, ...$frontier];
 
-            $frontier = KnowledgeEdge::query()
+            // 循環は他の利用者の個人の関係も含めて判定する（見えない関係で循環ができないように）。
+            $frontier = KnowledgeEdge::withoutGlobalScopes()
                 ->where('relation_type_id', $relationType->id)
                 ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
                 ->whereIn('source_node_id', $frontier)
@@ -309,7 +322,7 @@ class KnowledgeCurator
         $targetId = $edge->target_node_id === $from->id ? $into->id : $edge->target_node_id;
         $before = $edge->only(['source_node_id', 'target_node_id', 'status']);
 
-        $duplicate = KnowledgeEdge::query()
+        $duplicate = KnowledgeEdge::withoutGlobalScopes()
             ->where('source_node_id', $sourceId)
             ->where('target_node_id', $targetId)
             ->where('relation_type_id', $edge->relation_type_id)
@@ -318,7 +331,7 @@ class KnowledgeCurator
         if ($sourceId === $targetId || $duplicate !== null) {
             // 統合先との間の関係、または統合先にすでにある関係は廃止する。出典は残っている関係へ移す。
             if ($duplicate !== null) {
-                $edge->sources()->update(['sourceable_id' => $duplicate->id]);
+                $edge->sources()->withoutGlobalScopes()->update(['sourceable_id' => $duplicate->id]);
             }
 
             $edge->update(['status' => KnowledgeNode::STATUS_DEPRECATED]);

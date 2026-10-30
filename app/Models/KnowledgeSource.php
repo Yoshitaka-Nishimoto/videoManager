@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasOwner;
 use Database\Factories\KnowledgeSourceFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,11 +21,27 @@ use Laravel\Ai\Models\ConversationMessage;
     'end_seconds',
     'excerpt',
     'created_by',
+    'owner_id',
 ])]
 class KnowledgeSource extends Model
 {
     /** @use HasFactory<KnowledgeSourceFactory> */
-    use HasFactory;
+    use HasFactory, HasOwner;
+
+    /**
+     * 個人の情報源の出典、または個人のノード・関係の出典は、その持ち主だけが見られるようにする。
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (KnowledgeSource $source) {
+            $source->owner_id ??= match (true) {
+                $source->video_id !== null && ($owner = Video::withoutGlobalScopes()->whereKey($source->video_id)->value('owner_id')) !== null => $owner,
+                $source->sourceable_type === (new KnowledgeNode)->getMorphClass() => KnowledgeNode::withoutGlobalScopes()->whereKey($source->sourceable_id)->value('owner_id'),
+                $source->sourceable_type === (new KnowledgeEdge)->getMorphClass() => KnowledgeEdge::withoutGlobalScopes()->whereKey($source->sourceable_id)->value('owner_id'),
+                default => null,
+            };
+        });
+    }
 
     /**
      * Get the attributes that should be cast.

@@ -73,7 +73,7 @@ class KnowledgeCandidateWriter
             ]);
 
             foreach ($result->concepts as $concept) {
-                $conceptNode = $this->conceptNode($concept['title'], $concept['description']);
+                $conceptNode = $this->conceptNode($concept['title'], $concept['description'], $video->owner_id);
 
                 $edge = $this->edge($conceptNode, 'extracted_from', $analysisNode, [
                     'status' => KnowledgeNode::STATUS_CANDIDATE,
@@ -99,10 +99,14 @@ class KnowledgeCandidateWriter
 
     /**
      * 同名の概念があれば再利用し（統合済みなら統合先）、なければ AI 提案の候補として作る。
+     *
+     * 個人の情報源（$ownerId あり）は、共有の概念と本人の概念を再利用し、新しい概念は本人だけのものにする。
+     * 共有の情報源は共有の概念だけを再利用する（他の利用者の個人の概念につながないため）。
      */
-    private function conceptNode(string $title, string $description): KnowledgeNode
+    private function conceptNode(string $title, string $description, ?int $ownerId): KnowledgeNode
     {
         $sameTitle = KnowledgeNode::query()
+            ->visibleTo($ownerId)
             ->where('node_type', KnowledgeNode::TYPE_CONCEPT)
             ->where('title', $title)
             ->orderBy('id')
@@ -121,6 +125,7 @@ class KnowledgeCandidateWriter
             'description' => $description,
             'status' => KnowledgeNode::STATUS_CANDIDATE,
             'proposed_by' => KnowledgeNode::PROPOSED_BY_AI,
+            'owner_id' => $ownerId,
         ]);
 
         $this->recordRevision($node, KnowledgeRevision::ACTION_CREATE, 'AI が分析から抽出', changedBy: null);

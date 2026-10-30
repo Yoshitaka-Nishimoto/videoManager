@@ -65,7 +65,7 @@ new #[Title('制作を作る')] class extends Component
     public function create(CreateProduction $create): void
     {
         $validated = $this->validate([
-            'decisionId' => ['required', Rule::exists('knowledge_nodes', 'id')->where('node_type', KnowledgeNode::TYPE_DECISION)],
+            'decisionId' => ['required', Rule::exists('knowledge_nodes', 'id')->where('node_type', KnowledgeNode::TYPE_DECISION)->whereNull('owner_id')],
             'genre' => ['required', Rule::in(array_keys(VideoProduction::GENRES))],
             'structure' => ['required', Rule::in(array_keys(ProductionTemplate::STRUCTURES))],
             'audience' => ['required', Rule::in(array_keys(ProductionTemplate::AUDIENCES))],
@@ -96,7 +96,7 @@ new #[Title('制作を作る')] class extends Component
     }
 
     /**
-     * 制作の元にできる設計判断（廃止を除く）。
+     * 制作の元にできる設計判断（廃止を除く）。制作は全員で共有するので、個人の設計判断は使えない。
      *
      * @return Collection<int, KnowledgeNode>
      */
@@ -104,6 +104,7 @@ new #[Title('制作を作る')] class extends Component
     public function decisions(): Collection
     {
         return KnowledgeNode::query()
+            ->visibleTo(null)
             ->where('node_type', KnowledgeNode::TYPE_DECISION)
             ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
             ->latest('id')

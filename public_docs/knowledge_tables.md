@@ -129,6 +129,20 @@ AI 使用量は `ai_usage_logs`（feature = embedding）に記録する。98 件
 - 関係の種類や向きが誤っていたとき、既存の行を書き換えずに「古い関係を廃止 → 正しい関係を作成 → 古い関係の `replaced_by_id` に新しい関係を入れる」。根拠（knowledge_sources）は新しい関係へ移す。
 - 再分析しても古い判断を上書きしない（design.md の「変更履歴」）。ノードの `merged_into_id` と同じ考え方。
 
+## owner_id（本人だけが見られる知識）【列の追加】
+
+個人のリソース（血液検査の結果など）から作った知識を、持ち主だけに見せるための列。詳しくは personal_resources.md。
+
+| テーブル | 列 | 内容 |
+|---|---|---|
+| videos | owner_id（FK users null） | 空なら共有。個人のファイル（`source_type = file`）は持ち主 |
+| knowledge_nodes | owner_id（FK users null） | 個人の情報源の動画・分析ノード、そこから AI が新しく作った概念、個人の概念から作った設計判断・実装 |
+| knowledge_edges | owner_id（FK users null） | どちらかの端が個人のノードなら、その持ち主（共有の概念 → 個人の分析の「分析から抽出した」も個人） |
+| knowledge_sources | owner_id（FK users null） | 個人の情報源、または個人のノード・関係の出典 |
+
+- 登録時に自動で決まる（各モデルの `creating`）。利用者を削除しても共有にならないよう、外部キーは削除を制限する。
+- 画面ではログイン中の利用者に、共有と自分のものだけを見せる（全体にかけるスコープ `VisibleToCurrentUser`）。件数・関連の読み込み・ジャンルの絞り込みにも効く。
+
 ## 検索（タイトル・種類・関係・出典）
 
 新しいテーブルは不要。既存の列と索引で足りる。

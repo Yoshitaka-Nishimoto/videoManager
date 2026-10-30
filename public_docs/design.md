@@ -14,6 +14,7 @@ Graphify の graph.json だけを唯一の保存先にする設計では足り�
 | 4 | **候補と確定の区別** | AI が提案したノード・エッジを即座に確定せず、`候補 → 確認済み → 廃止`で管理する | 済み |
 | 5 | **変更履歴** | 要約や関係を修正した人・日時・理由を残す。再分析時に古い判断を上書きしない（`knowledge_revisions`） | 済み。誤った関係の置き換え（`replaced_by_id`）は列のみで操作は未 |
 | 6 | **重複の整理** | 「画像品質確認」と「入力画像の品質検査」が同じ概念か、人が確認して統合する（`merged_into_id`）。似たノードの候補は pgvector で出す | 統合の操作は済み。候補は `php artisan knowledge:embed --duplicates` で見られるが、画面には未表示 |
+| 7 | **見える範囲** | 知識は全員で共有するのが基本。血液検査の結果など個人のリソースから作った知識は、持ち主だけが見られる（`owner_id`）。共有の概念とは本人の画面でだけつながる（personal_resources.md） | 済み |
 
 ## 保存先の役割
 
@@ -22,7 +23,8 @@ Laravel の業務データと Graphify の生成グラフは役割を分ける�
 | 対象 | 正本 | 探索・表示 |
 |---|---|---|
 | YouTube ID、動画情報、要約、分析結果、会話との対応 | PostgreSQL | VideoManager の Livewire 画面 |
-| 概念・設計判断・実装と、確定したエッジ | PostgreSQL（知識テーブル） | Livewire 画面、知識入りの graph.html（`bin/knowledge-graph`） |
+| 個人のファイル（血液検査の結果の CSV など） | `storage/app/private/resources/{利用者 ID}/`（公開しない）。登録・分析・知識は PostgreSQL に `owner_id` 付きで | 持ち主の Livewire 画面だけ |
+| 概念・設計判断・実装と、確定したエッジ | PostgreSQL（知識テーブル） | Livewire 画面、知識入りの graph.html（`bin/knowledge-graph`。共有の知識だけ） |
 | 「このノードとエッジは確定済み」などの規則 | Laravel 側の知識テーブルと登録処理 | — |
 | 実装とコードの対応 | PostgreSQL（`knowledge_code_links`） | 知識の画面、知識入りの graph.html |
 | ノードの意味のベクトル | PostgreSQL（`knowledge_nodes.embedding`、pgvector） | 重複の候補・言い換え検索。作り直せる派生データ |
@@ -48,7 +50,7 @@ pgvector は類似の候補を出す手段で、二つの概念が同一か、�
 
 動画ファイルそのものは videos テーブルに入れない。YouTube ID や、制作した動画の保存先を記録する。
 
-- `videos.source_type` で `youtube`・`runway`・`remotion` を区別する。
+- `videos.source_type` で `youtube`・`web`・`file`・`runway`・`remotion` を区別する。`web` は公式サイト・GitHub など（web_sources.md）、`file` は利用者がアップロードした個人のファイル（personal_resources.md）。
 - 制作の作業（台本・場面・Runway の依頼・書き出し）は制作用の別テーブル（`video_productions` など。production_tables.md）に置く。
 
 ## 画面
@@ -68,8 +70,8 @@ pgvector は類似の候補を出す手段で、二つの概念が同一か、�
 
 | 画面 | 内容 | 状況 |
 |---|---|---|
-| 動画一覧・登録 | YouTube URL を登録し、動画 ID で重複を防ぐ | 済み |
-| 動画詳細・分析 | 要約、分析履歴、関連ノード。分析をジョブに投入し、進捗と結果を表示する | 済み |
+| 情報源一覧・登録 | YouTube の動画・Web ページの URL と、個人のファイル（CSV）を登録し、重複を防ぐ。ジャンルで絞り込む | 済み |
+| 情報源の詳細・分析 | 要約、分析履歴、関連ノード、分析に使った本文・データ。分析をジョブに投入し、進捗と結果を表示する | 済み |
 | 知識一覧・詳細 | 提案されたノード・エッジを確認し、採用・修正・統合する | 済み |
 | AI 使用量 | VideoManager が呼んだ AI のモデル別・機能別のトークン、推定費用、失敗件数 | 済み |
 | 制作 | 台本、場面、素材、Runway・Remotion による動画の制作 | 済み |

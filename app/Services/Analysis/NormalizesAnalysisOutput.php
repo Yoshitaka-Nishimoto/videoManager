@@ -3,6 +3,7 @@
 namespace App\Services\Analysis;
 
 use App\Models\KnowledgeNode;
+use App\Models\Video;
 use Illuminate\Support\Str;
 
 /**
@@ -14,19 +15,59 @@ trait NormalizesAnalysisOutput
     private const EXISTING_CONCEPTS_LIMIT = 100;
 
     /**
-     * 同じ意味の概念に同じ名称を使わせるため、既存の概念の名称を並べる。確認済みを優先する。
+     * 同じ意味の概念に同じ名称を使わせるため、既存の概念の名称を並べる。
+     *
+     * 情報源から見える概念（共有と、個人の情報源なら持ち主の概念）だけを使い、他の利用者の個人の概念は渡さない。
+     * 情報源と同じジャンルの概念を先に、その中では確認済みを先に並べる。
      */
-    private function existingConceptsLine(): string
+    private function existingConceptsLine(Video $video): string
     {
-        $existing = KnowledgeNode::query()
+        $base = fn () => KnowledgeNode::query()
+            ->visibleTo($video->owner_id)
             ->where('node_type', KnowledgeNode::TYPE_CONCEPT)
             ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
             ->orderByRaw("case status when 'confirmed' then 0 else 1 end")
             ->latest('id')
-            ->limit(self::EXISTING_CONCEPTS_LIMIT)
-            ->pluck('title');
+            ->limit(self::EXISTING_CONCEPTS_LIMIT);
+
+        $inGenre = $video->genre !== null ? $base()->inGenre($video->genre)->pluck('title') : collect();
+        $existing = $inGenre->concat($base()->pluck('title'))->unique()->take(self::EXISTING_CONCEPTS_LIMIT);
 
         return '既存の概念：'.($existing->isEmpty() ? 'なし' : $existing->implode('、'));
+    }
+
+    /**
+     * 本文からの引用つきの要点（Web ページ・ファイル）を補正する。本文に見つからない引用は、根拠に戻れないので空にする。
+     *
+     * @param  array<string, mixed>  $output
+     * @return list<array{start_seconds: null, end_seconds: null, point: string, quote: string|null}>
+     */
+    private function quotedKeyPoints(array $output, string $text): array
+    {
+        $flatText = $this->flatten($text);
+
+        return collect($output['key_points'] ?? [])
+            ->filter(fn ($point) => is_array($point) && filled($point['point'] ?? null))
+            ->map(function (array $point) use ($flatText) {
+                $quote = trim((string) ($point['quote'] ?? ''));
+
+                return [
+                    'start_seconds' => null,
+                    'end_seconds' => null,
+                    'point' => trim($point['point']),
+                    'quote' => $quote !== '' && str_contains($flatText, $this->flatten($quote)) ? $quote : null,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * 空白の違いで引用の照合が外れないよう、空白を詰める。
+     */
+    private function flatten(string $text): string
+    {
+        return trim(preg_replace('/\s+/u', ' ', $text));
     }
 
     /**

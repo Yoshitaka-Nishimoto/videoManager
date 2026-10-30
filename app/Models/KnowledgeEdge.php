@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Jobs\EmbedKnowledgeNodes;
+use App\Models\Concerns\HasOwner;
 use Database\Factories\KnowledgeEdgeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use LogicException;
 
 #[Fillable([
     'source_node_id',
@@ -21,17 +23,33 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'proposed_by',
     'confirmed_by',
     'confirmed_at',
+    'owner_id',
 ])]
 class KnowledgeEdge extends Model
 {
     /** @use HasFactory<KnowledgeEdgeFactory> */
-    use HasFactory;
+    use HasFactory, HasOwner;
 
     /**
      * 設計判断・実装の埋め込みには、つながる概念・設計判断の名称を入れるので、関係が変わったら作り直す。
      */
     protected static function booted(): void
     {
+        // どちらかの端が個人のノードなら、関係もその持ち主だけが見られるようにする。
+        static::creating(function (KnowledgeEdge $edge) {
+            $owners = KnowledgeNode::withoutGlobalScopes()
+                ->whereKey([$edge->source_node_id, $edge->target_node_id])
+                ->whereNotNull('owner_id')
+                ->distinct()
+                ->pluck('owner_id');
+
+            if ($owners->count() > 1) {
+                throw new LogicException('持ち主の違う個人のノードどうしは、関係でつなげません。');
+            }
+
+            $edge->owner_id ??= $owners->first();
+        });
+
         static::created(fn (KnowledgeEdge $edge) => EmbedKnowledgeNodes::dispatchFor([$edge->source_node_id]));
         static::updated(function (KnowledgeEdge $edge) {
             if ($edge->wasChanged(['status', 'source_node_id', 'target_node_id'])) {

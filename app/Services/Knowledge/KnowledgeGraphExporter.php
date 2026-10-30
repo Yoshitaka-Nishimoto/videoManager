@@ -29,13 +29,16 @@ class KnowledgeGraphExporter
     {
         $codeNodes = collect($graph['nodes'] ?? [])->keyBy('id');
 
+        // graph.html はファイルとして共有されるので、個人のノード・関係は入れない。
         $nodes = KnowledgeNode::query()
+            ->visibleTo(null)
             ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
             ->orderBy('id')
             ->get();
         $nodeIds = $nodes->pluck('id')->flip();
 
         $edges = KnowledgeEdge::query()
+            ->visibleTo(null)
             ->with('relationType')
             ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
             ->orderBy('id')
