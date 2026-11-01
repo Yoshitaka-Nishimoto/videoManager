@@ -30,8 +30,30 @@ Laravel の業務データと Graphify の生成グラフは役割を分ける�
 | ノードの意味のベクトル | PostgreSQL（`knowledge_nodes.embedding`、pgvector） | 重複の候補・言い換え検索。作り直せる派生データ |
 | Laravel・Livewire・Remotion のソース | Git／GitHub | Graphify |
 | Graphify の graph.json | ソースから作り直せる解析結果 | 開発エージェントの検索。DB には取り込まない |
+| DB スキーマのグラフ（`graphify-out/postgres/`） | 稼働中の PostgreSQL から作り直せる解析結果（正本はマイグレーション） | データベース設計の検討。DB には取り込まない |
 
 pgvector は類似の候補を出す手段で、二つの概念が同一か、エッジが正しいかの確定は人が行う。
+
+### DB スキーマのグラフ（`graphify-out/postgres/`）
+
+データベース設計に役立てるため、Graphify で PostgreSQL のスキーマだけのグラフを作る。コードのグラフ（`graphify-out/graph.json`）とは分けて置く。
+
+```
+graphify-out/postgres/
+    ├── graph.json      ← DB スキーマだけのグラフ
+    ├── GRAPH_REPORT.md ← 要約（コミュニティ、つながりの多いテーブルなど）
+    └── graph.html      ← ブラウザで見る図
+```
+
+- 作り方：`graphify extract` の `--postgres DSN` で、稼働中の DB（Sail の pgsql、`laravel`）からスキーマを読み取る。WSL の `~/video_manager` で、Sail を起動した状態で実行する。出力先は環境変数 `GRAPHIFY_OUT` で、コードのグラフ（`graphify-out/`）と分ける。DSN のパスワードは `.env` の `DB_PASSWORD` を使い、文書やコミットには書かない。
+
+  ```bash
+  cd ~/video_manager
+  GRAPHIFY_OUT=graphify-out/postgres graphify extract --postgres "postgresql://sail:<DB_PASSWORD>@127.0.0.1:5432/laravel"
+  ```
+- 入るもの：テーブル・ビュー・関数（pgvector の `array_to_vector` など）がノード、外部キーが `references` のエッジ（例：`knowledge_edges` → `knowledge_nodes`）。DB とスキーマ・テーブルの包含は `contains` のエッジ。**列の詳細（型・NULL 可否・索引）は入らない**ので、列はマイグレーションと `knowledge_tables.md` などの表で確認する。
+- 使い方：テーブルを足す・外部キーを変える前に graph.html で、どのテーブルとつながるか、孤立したテーブルがないかを見る。外部キーでつながらないテーブル（`agent_conversation_messages` の `participant_id` のような多態の関連など）は、エッジが出ないことに注意する。
+- 更新：マイグレーションを実行した後に作り直す。正本はマイグレーションなので、古くなっても困らないが、設計の検討に使う前に GRAPH_REPORT.md の「Built from commit」で新しさを確かめる。
 
 ## 必要環境
 
@@ -42,7 +64,7 @@ pgvector は類似の候補を出す手段で、二つの概念が同一か、�
 | AI | Laravel AI SDK（`laravel/ai`）、Gemini（OpenAI に切り替え可） | 動画分析、台本の候補、知識の埋め込み（gemini-embedding-2）。Web ページ・個人のファイルの分析と台本の候補は、`.env` の `TEXT_AI_PROVIDER=openai` で OpenAI に切り替えられる。YouTube の動画は URL のまま見られる Gemini だけで分析する |
 | 主データベース | PostgreSQL 18＋pgvector | 業務データ、ノード・エッジ、埋め込みと類似検索 |
 | 非同期処理 | Laravel Queue（database）のワーカー | 分析、埋め込み、動画生成などの時間のかかるジョブ |
-| グラフ探索 | Graphify（WSL2 側で実行） | コードと DB の知識を横断して調べる |
+| グラフ探索 | Graphify（WSL2 側で実行） | コードと DB の知識を横断して調べる。DB スキーマのグラフ（`graphify-out/postgres/`）でテーブルのつながりを見る |
 | 動画制作 | Remotion（Node.js／TypeScript） | テンプレートに沿った動画の組み立て |
 | AI 動画生成 | Runway API | 必要な場面だけ生成を依頼 |
 
