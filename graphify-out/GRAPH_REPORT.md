@@ -1,17 +1,17 @@
-# Graph Report - video_manager  (2026-10-23)
+# Graph Report - video_manager  (2026-11-01)
 
 ## Corpus Check
-- 433 files · ~179,347 words
+- 487 files · ~192,059 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 24 file(s) not represented in the graph (top: (none) 18, .geojson 2, .example 1)
+- Unclassified: 18 file(s) not represented in the graph (top: (none) 12, .geojson 2, .example 1)
 
 ## Summary
-- 2968 nodes · 4950 edges · 272 communities (159 shown, 113 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 107 edges (avg confidence: 0.91)
+- 3562 nodes · 6024 edges · 311 communities (200 shown, 111 thin omitted)
+- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 235 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8bb82d82`
+- Built from commit: `5452462b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -20,7 +20,7 @@
 - composer.json
 - Illuminate\Database\Eloquent\Model
 - Illuminate\Database\Schema\Blueprint
-- KnowledgeNode
+- KnowledgeCuratorTest
 - package.json
 - FortifyServiceProvider.php
 - Laravel Boost
@@ -31,7 +31,7 @@
 - RuntimeException
 - CodeChangeApplierTest
 - windows-remotion.mjs
-- YouTubeClient
+- KnowledgeCandidateWriter
 - Robots.txt Crawler Policy
 - image-compress.js
 - index.blade.php
@@ -39,11 +39,11 @@
 - Stringable
 - remotion-markup/REFERENCE.md
 - 制作案のテーブル設計
-- KnowledgeEdge
+- KnowledgeGraphTest
 - VideoProduction
 - Cloud CLI
 - remotion-best-practices/SKILL.md
-- GeminiVideoAnalyzer.php
+- GeminiVideoAnalyzer
 - Video
 - remotion-best-practices/remotion-maps/techniques/maptiler/assets/RiverReveal.tsx
 - remotion-markup/remotion-maps/techniques/maptiler/assets/RiverReveal.tsx
@@ -51,60 +51,60 @@
 - Illuminate\Database\Eloquent\Relations\BelongsTo
 - ProductionRender
 - Basic Usage Examples
-- RunwayTask
+- KnowledgeEmbedder
 - AppServiceProvider.php
-- .durationInFrames
+- Adaptive Silence Detection
 - Livewire Development
 - remotion-best-practices/remotion-maps/techniques/maptiler/scripts/prep-geo.mjs
 - Security Best Practices
 - remotion-markup/remotion-maps/techniques/maptiler/scripts/prep-geo.mjs
-- User
+- PersonalFileReader
 - remotion-interactivity/REFERENCE.md
 - Using calculateMetadata
 - ref_react
 - Root.tsx
 - remotion-captions/REFERENCE.md
-- Graphify の graph.json だけを唯一の保存先にする設計だけでは、出来ない。pgvectorとの併用が必要。
+- VideoManager の設計方針
 - GeminiVideoAnalyzerTest.php
 - KnowledgeSource
 - remotion-create/REFERENCE.md
 - 場面の content の形式
 - Laravel Sail Docker Service
 - 起動後にコンテナ側の拡張を確認するには、プロジェクト内で実行します。
-- ProductionScene
-- KnowledgeGraphSeeder.php
+- ProductionModelTest
+- KnowledgeNode
 - From now on, please write in Japanese and answer in Japanese.
 - remotion-best-practices/remotion-maps/techniques/cesium/scripts/prep-cesium-path.mjs
 - ProductionPlan
 - GenerateRunwayImage
 - AiUsageRecorder
-- connected-compositions.md
+- google-fonts.md
 - remotion-markup/remotion-maps/techniques/cesium/scripts/prep-cesium-path.mjs
 - windows/package.json
 - GeminiModelsTest.php
 - Using audio in Remotion
 - remotion-saas/REFERENCE.md
 - Remotion のテーブル設計
-- VideoAnalysis
+- KnowledgeCodeLink
 - remotion-best-practices/remotion-maps/techniques/cesium/assets/CesiumFlythrough.tsx
 - remotion-markup/remotion-maps/techniques/cesium/assets/CesiumFlythrough.tsx
-- NarrationTiming
+- KnowledgePagesTest
 - Illuminate\Database\Eloquent\Factories\Factory
 - ProductionRenderTest.php
-- GeminiModels
+- WebPageClient
 - AgentConversationSeeder.php
-- VideoAnalysisFlowTest.php
-- RenderProduction
+- PersonalResourceTest.php
+- WebPageSourceTest.php
 - transitions.md
 - KnowledgeNodeFactory.php
 - Illuminate\Database\Migrations\Migration
-- Illuminate\Support\Facades\Schema
+- Illuminate\Database\Migrations\Migration
 - compilerOptions
 - ProductionAsset
 - KnowledgeCurator.php
 - Process
-- ProductionScriptTest
-- GenerateRunwayImage.php
+- GeminiModels
+- RunwayImage.php
 - AiUsageLog.php
 - CodeLocator
 - Architecture Best Practices
@@ -112,12 +112,13 @@
 - MapTiler maps in Remotion
 - Tailwind CSS Development
 - testing-best-practices/SKILL.md
-- VideoAnalysisFlowTest
+- VideoAnalysis
 - VideoRegistrationTest
-- RequestProductionRender.php
-- AiUsageLog
+- ProductionScene
+- NormalizesAnalysisOutput.php
 - AstResult
-- RemotionInput
+- del_fake
+- ScriptContext.php
 - productions/⚡show.blade.php
 - knowledge/⚡show.blade.php
 - Advanced Query Best Practices
@@ -133,13 +134,13 @@
 - remotion-markup/remotion-maps/techniques/maplibre/TECHNIQUE.md
 - VideoAnalysisFactory.php
 - 動画制作でできることの一覧（Remotion／Runway）
-- CodeLocatorTest
+- Laravel\Ai\Enums\Lab
 - ProductionAssetTest
-- CodeChangeApplier
-- RunwayImage.php
+- YouTubeVideoId
+- KnowledgeGraphExporter.php
 - RunwayTask.php
-- VideoProduction.php
-- ProductionTemplate
+- environment
+- laravel.test
 - Caching Best Practices
 - Database Performance Best Practices
 - Eloquent Best Practices
@@ -149,13 +150,14 @@
 - Map Explainer — architecture reference
 - VideoManager の Remotion
 - scripts
-- 知識の詳細画面のテーブル設計
+- Illuminate\Database\Eloquent\Builder
 - Windows ネイティブでの静止画書き出し
 - CodeAgentTestCase
-- ProductionPagesTest
-- RemotionStudioTest
-- RunwayImageTest
-- User.php
+- KnowledgeChatContext.php
+- KnowledgeRelationTypeSeeder
+- Runway のテーブル設計
+- User
+- KnowledgeChatTest
 - Blade and View Best Practices
 - Error Handling Best Practices
 - Task Scheduling Best Practices
@@ -166,7 +168,8 @@
 - Endpoint Tests
 - require
 - KnowledgeCodeLink.php
-- Adding AI voiceover to a Remotion composition
+- CreateProduction.php
+- Carbon\CarbonImmutable
 - laravel-best-practices/SKILL.md
 - Collection Best Practices
 - HTTP Client Best Practices
@@ -187,7 +190,7 @@
 - config
 - ProductionScene.php
 - AnalysisResult
-- Configuration Best Practices
+- Detection Checklist
 - Remotion Maps
 - Moving Map Render Stability
 - Moving Map Render Stability
@@ -200,7 +203,7 @@
 - Moving Map Render Stability
 - Naming and Structure
 - 2026_10_04_081534_create_agent_conversations_table.php
-- .handle
+- pgsql
 - ProductionPlan.php
 - Flyover data sources
 - 3D Flyover — troubleshooting
@@ -219,7 +222,7 @@
 - 2026_10_08_000001_add_statistics_columns_to_videos_table.php
 - 2026_10_10_000000_add_genre_to_video_productions_table.php
 - 2026_10_10_000001_add_script_columns_to_production_plans_table.php
-- 2026_10_10_000002_add_script_timestamps_to_production_plans_table.php
+- ProductionRenderFactory.php
 - 2026_10_22_000001_add_replaced_by_id_to_knowledge_edges_table.php
 - RunwayClient.php
 - effects.md
@@ -232,40 +235,77 @@
 - 2026_10_04_083333_create_knowledge_sources_table.php
 - 2026_10_04_083335_create_knowledge_revisions_table.php
 - 2026_10_04_222017_create_ai_usage_logs_table.php
-- 2026_10_07_000000_create_video_productions_table.php
+- VideoFactory.php
 - 2026_10_07_000001_create_production_assets_table.php
 - 2026_10_07_000003_create_production_scenes_table.php
 - 2026_10_07_000006_create_runway_task_inputs_table.php
-- 2026_10_07_000007_create_production_renders_table.php
+- ProductionCreateTest
 - 2026_10_22_000000_create_knowledge_code_links_table.php
-- BuildsFakeRepository
+- Delaying, trimming
 - videos/⚡show.blade.php
 - autoload-dev
 - extra
+- services
+- volumes
+- KnowledgeAssistant
+- WebPageClient.php
+- interface
+- interface
+- interface
+- interface
+- interface
+- interface
+- interface
+- interface
+- interface
+- interface
+- interface
+- interface
+- interface
+- meilisearch
+- .create
+- VideoAnalyzer
+- PersonalFileReader.php
+- ProductionAssetFactory.php
+- Routing and Controller Best Practices
+- retries
+- VideoStatisticsTest
+- environment
+- 0001_01_01_000000_create_users_table.php
+- 2026_10_07_000005_create_runway_task_outputs_table.php
+- CodeFixer.php
+- redis
+- selenium
+- 2026_10_04_070310_add_source_columns_to_videos_table.php
+- 2026_10_23_000000_add_embedding_columns_to_knowledge_nodes_table.php
+- 2026_10_27_000000_add_genre_to_videos_table.php
+- 2026_10_04_083329_create_knowledge_relation_types_table.php
+- 2026_10_07_000004_create_runway_tasks_table.php
+- newConversation
 
 ## God Nodes (most connected - your core abstractions)
-1. `KnowledgeNode` - 144 edges
-2. `User` - 100 edges
-3. `ProductionPlan` - 84 edges
-4. `Video` - 75 edges
-5. `ProductionRender` - 66 edges
-6. `VideoAnalysis` - 58 edges
-7. `TestCase` - 55 edges
-8. `ProductionScene` - 47 edges
-9. `VideoProduction` - 47 edges
-10. `KnowledgeEdge` - 40 edges
+1. `KnowledgeNode` - 134 edges
+2. `User` - 102 edges
+3. `Video` - 81 edges
+4. `ProductionPlan` - 74 edges
+5. `TestCase` - 65 edges
+6. `ProductionRender` - 56 edges
+7. `VideoAnalysis` - 51 edges
+8. `KnowledgeEdge` - 42 edges
+9. `VideoProduction` - 40 edges
+10. `ProductionScene` - 39 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `画面一覧` --references--> `KnowledgeAssistant`  [INFERRED]
+  public_docs/design.md → app/Ai/Agents/KnowledgeAssistant.php
+- `方針` --references--> `PersonalDataAnalyst`  [INFERRED]
+  public_docs/personal_resources.md → app/Ai/Agents/PersonalDataAnalyst.php
+- `Laravel 側` --references--> `ProductionRenderFileController`  [INFERRED]
+  .claude/skills/remotion-project/SKILL.md → app/Http/Controllers/ProductionRenderFileController.php
 - `Studio の使い分け` --references--> `RemotionStudioController`  [INFERRED]
   .claude/skills/remotion-project/SKILL.md → app/Http/Controllers/RemotionStudioController.php
-- `Follow Project Naming Conventions` --references--> `User`  [INFERRED]
-  .claude/skills/laravel-best-practices/rules/style.md → app/Models/User.php
-- `「入力画像の品質確認」を開いたときのたどり方` --references--> `KnowledgeRelationTypeSeeder`  [INFERRED]
-  public_docs/knowledge_tables.md → database/seeders/KnowledgeRelationTypeSeeder.php
-- `コンポジションの構成（Remotion のプロジェクト側）` --references--> `Production()`  [INFERRED]
-  public_docs/remotion_tables.md → remotion/src/Production.tsx
-- `場面の部品を追加するとき` --references--> `SceneFrame()`  [INFERRED]
-  .claude/skills/remotion-project/SKILL.md → remotion/src/scenes/SceneFrame.tsx
+- `埋め込み（pgvector）` --references--> `EmbedKnowledgeNodes`  [INFERRED]
+  public_docs/knowledge_tables.md → app/Jobs/EmbedKnowledgeNodes.php
 
 ## Import Cycles
 - None detected.
@@ -274,47 +314,47 @@
 - **Laravel Sail Docker Infrastructure** — compose_yaml_laravel_sail, compose_yaml_mysql, compose_yaml_redis, compose_yaml_meilisearch, compose_yaml_mailpit, compose_yaml_selenium [EXTRACTED 1.00]
 - **Laravel Boost Agent Setup Pattern** — agents_md_laravel_boost, claude_md_laravel_boost, readme_laravel_boost_agentic [INFERRED 0.95]
 
-## Communities (272 total, 113 thin omitted)
+## Communities (311 total, 111 thin omitted)
+
+### Community 0 - "ModifyCode"
+Cohesion: 0.16
+Nodes (4): ModifyCode, ReadCode, CodeChangeApplier, CodeChangeException
 
 ### Community 1 - "composer.json"
 Cohesion: 0.22
 Nodes (8): description, keywords, license, minimum-stability, name, prefer-stable, $schema, type
 
-### Community 2 - "Illuminate\Database\Eloquent\Model"
-Cohesion: 0.12
-Nodes (5): CodeChange, RunwayTaskOutput, ProductionRenderFactory, VideoFactory, {closure#6}()
-
 ### Community 3 - "Illuminate\Database\Schema\Blueprint"
 Cohesion: 0.12
-Nodes (11): {closure#1}(), {closure#2}(), {closure#3}(), {closure#1}(), {closure#2}(), {closure#3}(), {closure#1}(), {closure#2}() (+3 more)
+Nodes (13): {closure#1}(), {closure#2}(), {closure#3}(), {closure#1}(), {closure#2}(), {closure#1}(), {closure#2}(), {closure#3}() (+5 more)
 
-### Community 4 - "KnowledgeNode"
-Cohesion: 0.07
-Nodes (9): KnowledgeNode, KnowledgeRelationType, CodeLocation, {closure#1}(), {closure#2}(), {closure#3}(), KnowledgeCandidateWriter, KnowledgeCuratorTest (+1 more)
+### Community 4 - "KnowledgeCuratorTest"
+Cohesion: 0.10
+Nodes (5): KnowledgeRelationType, CodeLocation, KnowledgeCurator, KnowledgeRuleViolation, KnowledgeCuratorTest
 
 ### Community 5 - "package.json"
-Cohesion: 0.09
-Nodes (22): devDependencies, concurrently, fontaine, laravel-vite-plugin, tailwindcss, @tailwindcss/vite, vite, optionalDependencies (+14 more)
+Cohesion: 0.12
+Nodes (22): devDependencies, concurrently@^10.0.3, fontaine@^0.8.2, laravel-vite-plugin@^3.1, tailwindcss@^4.0.0, @tailwindcss/vite@^4.0.0, vite@^8.0.0, optionalDependencies (+14 more)
 
 ### Community 6 - "FortifyServiceProvider.php"
-Cohesion: 0.06
-Nodes (13): CreateNewUser, PasswordValidationRules, ResetUserPassword, UpdateUserPassword, UpdateUserProfileInformation, {closure#4}(), {closure#5}(), {closure#6}() (+5 more)
+Cohesion: 0.05
+Nodes (14): CreateNewUser, PasswordValidationRules, ResetUserPassword, UpdateUserPassword, UpdateUserProfileInformation, {closure#4}(), {closure#5}(), {closure#6}() (+6 more)
 
 ### Community 7 - "Laravel Boost"
 Cohesion: 0.22
 Nodes (9): Laravel Application Agent Setup Guide, Laravel Boost, PHP and Composer Prerequisites, Laravel Application Claude Setup Guide, Laravel Boost (CLAUDE.md reference), Eloquent ORM, Laravel Boost for Agentic Development, Laravel Framework (+1 more)
 
 ### Community 8 - "TestCase"
-Cohesion: 0.09
-Nodes (6): AuthenticationTest, CodeChangeHistoryPageTest, ExampleTest, ProductionDemoSeederTest, {closure#1}(), TestCase
+Cohesion: 0.05
+Nodes (11): AiUsageTest, AuthenticationTest, CodeAgentTestCase, CodeChangeHistoryPageTest, ExampleTest, ProductionDemoSeederTest, {closure#1}(), ProductionPagesTest (+3 more)
 
 ### Community 9 - "ast_check.py"
-Cohesion: 0.21
+Cohesion: 0.23
 Nodes (6): build_parser(), collect_errors(), collect_symbols(), name_of(), walk(), main()
 
 ### Community 10 - "web.php"
-Cohesion: 0.15
-Nodes (5): Controller, ProductionAssetFileController, ProductionRenderFileController, RemotionStudioController, Laravel 側
+Cohesion: 0.12
+Nodes (5): CodeChangeController, Controller, ProductionAssetFileController, ProductionRenderFileController, CodeChange
 
 ### Community 11 - "require-dev"
 Cohesion: 0.17
@@ -322,35 +362,35 @@ Nodes (12): require-dev, fakerphp/faker, fruitcake/laravel-debugbar, laravel/boo
 
 ### Community 12 - "RuntimeException"
 Cohesion: 0.09
-Nodes (5): AssetInUseException, AnalysisAlreadyRunningException, {closure#1}(), {closure#3}(), {closure#1}()
+Nodes (3): AssetInUseException, EmbedKnowledgeNodes, AiUsageLog
 
 ### Community 14 - "windows-remotion.mjs"
 Cohesion: 0.07
 Nodes (36): bundleCacheDirectory, cachedBundle(), codeHash(), emit(), finish(), listFiles(), main(), removeOldBundles() (+28 more)
 
-### Community 18 - "YouTubeClient"
-Cohesion: 0.08
-Nodes (9): RefreshVideoStatistics, {closure#1}(), RegisterYouTubeVideo, YouTubeClient, YouTubeException, YouTubeVideoDetails, YouTubeVideoId, ExampleTest (+1 more)
+### Community 18 - "KnowledgeCandidateWriter"
+Cohesion: 0.25
+Nodes (5): RefreshVideoStatistics, RegisterYouTubeVideo, KnowledgeCandidateWriter, YouTubeClient, YouTubeException
 
 ### Community 27 - "image-compress.js"
 Cohesion: 0.36
 Nodes (7): COMPRESSIBLE_TYPES, encode(), formatBytes(), QUALITIES, result(), shrinkImage(), toBlob()
 
+### Community 32 - "Stringable"
+Cohesion: 0.20
+Nodes (6): PersonalDataAnalyst, ScriptWriterAgent, VideoAnalyst, WebPageAnalyst, {closure#1}(), EchoAgent
+
 ### Community 33 - "remotion-markup/REFERENCE.md"
 Cohesion: 0.04
-Nodes (44): Measuring DOM nodes in Remotion, Measuring element dimensions, `<HtmlInCanvasMotionBlur>`, Motion blur, Color picker, 3D content, Advanced Images, Advanced sequencing (+36 more)
+Nodes (45): Measuring DOM nodes in Remotion, Measuring element dimensions, `<HtmlInCanvasMotionBlur>`, Motion blur, Color picker, 3D content, Advanced Images, Advanced sequencing (+37 more)
 
 ### Community 34 - "制作案のテーブル設計"
-Cohesion: 0.05
-Nodes (33): A. Validation & HTTP input, B. Controllers & routing, C. Authorization, D. Eloquent & models, Detection Checklist, E. Architecture & organization, F. Frontend & views, G. Database & migrations (+25 more)
-
-### Community 35 - "KnowledgeEdge"
-Cohesion: 0.06
-Nodes (3): KnowledgeCodeLink, KnowledgeEdge, KnowledgeGraphTest
+Cohesion: 0.15
+Nodes (12): production_assets（人が用意した素材）, production_plans（制作案の版）, production_renders（書き出し）, production_scenes（場面）, Runway の設計への追加（runway_tables.md）, video_productions（制作）, テーブル一覧, 制作案のテーブル設計 (+4 more)
 
 ### Community 36 - "VideoProduction"
-Cohesion: 0.09
-Nodes (7): {closure#1}(), CreateProduction, UploadProductionAsset, VideoProduction, {closure#1}(), ProductionDemoSeeder, ProductionCreateTest
+Cohesion: 0.20
+Nodes (4): VideoProduction, {closure#1}(), {closure#2}(), ProductionDemoSeeder
 
 ### Community 37 - "Cloud CLI"
 Cohesion: 0.06
@@ -360,13 +400,13 @@ Nodes (30): Adding a cache to an existing environment, Adding a database to an e
 Cohesion: 0.06
 Nodes (26): Fetching a page as Markdown, Searching the docs, Workflow, General rendering strategy, Transparent videos, Rendering Transparent Videos, Transparent ProRes, Transparent WebM (VP9) (+18 more)
 
-### Community 39 - "GeminiVideoAnalyzer.php"
-Cohesion: 0.09
-Nodes (6): VideoAnalyst, {closure#3}(), {closure#1}(), GeminiVideoAnalyzer, Runway の場面の content, GeminiVideoAnalyzerTest
+### Community 39 - "GeminiVideoAnalyzer"
+Cohesion: 0.11
+Nodes (9): {closure#1}(), GeminiVideoAnalyzer, Web ページの情報源（公式サイト・GitHub）, 保存（`video_analyses` に追加した列）, 分析（`GeminiWebPageAnalyzer`・`WebPageAnalyst`）, 方針, 本文の取得（`WebPageClient::content`）, 画面 (+1 more)
 
 ### Community 40 - "Video"
-Cohesion: 0.10
-Nodes (6): Video, {closure#1}(), VideoAnalysisSeeder, VideoSeeder, VideoStatisticsTest, VideoTest
+Cohesion: 0.09
+Nodes (6): Video, {closure#9}(), DatabaseSeeder, {closure#1}(), VideoAnalysisSeeder, VideoSeeder
 
 ### Community 41 - "remotion-best-practices/remotion-maps/techniques/maptiler/assets/RiverReveal.tsx"
 Cohesion: 0.09
@@ -377,20 +417,32 @@ Cohesion: 0.09
 Nodes (22): CountryLabel(), clamp01(), Country, countryPolygons, DRAW, EMPTY, END, lerp() (+14 more)
 
 ### Community 43 - "remotion/package.json"
-Cohesion: 0.07
-Nodes (28): @remotion/cli, @types/react, typescript, dependencies, react, react-dom, remotion, @remotion/bundler (+20 more)
+Cohesion: 0.09
+Nodes (28): @remotion/cli, @types/react, typescript, dependencies, react@19.3.0, react-dom@19.3.0, remotion@4.0.534, @remotion/bundler@4.0.534 (+20 more)
+
+### Community 44 - "Illuminate\Database\Eloquent\Relations\BelongsTo"
+Cohesion: 0.10
+Nodes (6): HasOwner, {closure#1}(), {closure#2}(), {closure#3}(), KnowledgeEdge, RunwayTaskInput
+
+### Community 45 - "ProductionRender"
+Cohesion: 0.11
+Nodes (4): {closure#1}(), RenderProduction, ProductionRender, ProductionRenderTest
 
 ### Community 46 - "Basic Usage Examples"
 Cohesion: 0.07
-Nodes (27): Agent Configuration, Agents, Audio, Basic Usage Examples, Common Pitfalls, Conversation Context, Conversation Memory, Decision Workflow (+19 more)
+Nodes (28): Agent Configuration, Agents, Audio, Basic Usage Examples, Common Pitfalls, Conversation Context, Conversation Memory, Decision Workflow (+20 more)
+
+### Community 47 - "KnowledgeEmbedder"
+Cohesion: 0.10
+Nodes (9): {closure#1}(), EmbedKnowledge, {closure#6}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}(), KnowledgeEmbedder (+1 more)
 
 ### Community 48 - "AppServiceProvider.php"
-Cohesion: 0.09
-Nodes (8): AppServiceProvider, {closure#1}(), {closure#3}(), DummyScriptWriter, ScriptContext, ScriptDraft, ScriptWriter, Record Construction
+Cohesion: 0.18
+Nodes (5): AppServiceProvider, {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}()
 
-### Community 49 - ".durationInFrames"
-Cohesion: 0.10
-Nodes (22): FFmpeg in Remotion, Trimming videos, General rules, Adaptive Silence Detection, Identifying leading and trailing silence, Interpreting the output, Step 1: Measure loudness with `loudnorm`, Step 2: Detect silences using adaptive threshold (+14 more)
+### Community 49 - "Adaptive Silence Detection"
+Cohesion: 0.20
+Nodes (8): FFmpeg in Remotion, Trimming videos, Adaptive Silence Detection, Identifying leading and trailing silence, Interpreting the output, Step 1: Measure loudness with `loudnorm`, Step 2: Detect silences using adaptive threshold, Using with Remotion's `<Video>` component
 
 ### Community 50 - "Livewire Development"
 Cohesion: 0.08
@@ -401,56 +453,56 @@ Cohesion: 0.08
 Nodes (18): ANCHOR_BBOX, biggestPoly(), borders, COUNTRIES, countryMeta, __dir, flowKm, FRAME_BBOX (+10 more)
 
 ### Community 52 - "Security Best Practices"
-Cohesion: 0.09
-Nodes (18): CodeChangeController, Keep Controllers Focused on HTTP Concerns, Organize Controllers Around Resources, Routing and Controller Best Practices, Scope Nested Bindings, Use Implicit Route Model Binding, Use Resource Routes for Resourceful Actions, Apply Cross-Site Request Forgery Protection (+10 more)
+Cohesion: 0.18
+Nodes (10): Apply Cross-Site Request Forgery Protection, Audit Dependencies, Authorize Protected Actions, Bind Query Parameters, Encrypt Sensitive Attributes When Appropriate, Escape Output in Its Context, Keep Secrets Out of Application Code, Rate Limit Sensitive Endpoints (+2 more)
 
 ### Community 53 - "remotion-markup/remotion-maps/techniques/maptiler/scripts/prep-geo.mjs"
 Cohesion: 0.08
 Nodes (18): ANCHOR_BBOX, biggestPoly(), borders, COUNTRIES, countryMeta, __dir, flowKm, FRAME_BBOX (+10 more)
 
-### Community 54 - "User"
-Cohesion: 0.21
-Nodes (4): User, KnowledgeCurator, KnowledgeRuleViolation, {closure#1}()
+### Community 54 - "PersonalFileReader"
+Cohesion: 0.12
+Nodes (12): RegisterPersonalFile, {closure#1}(), GeminiPersonalFileAnalyzer, PersonalFileException, PersonalFileReader, まだ対応していないもの, 個人のリソース（利用者ごとのデータ）, 分析（`GeminiPersonalFileAnalyzer`・`PersonalDataAnalyst`） (+4 more)
 
 ### Community 55 - "remotion-interactivity/REFERENCE.md"
-Cohesion: 0.08
-Nodes (20): Effects should be inline too, Animate using `interpolate()`, Choose schema fields, Effects should be inline too, Give every independently editable item its own JSX node, Give interactive elements a descriptive name, Keep all CSS styles inline, Keep composition metadata inline (+12 more)
+Cohesion: 0.06
+Nodes (29): Effects should be inline too, Animate using `interpolate()`, Choose schema fields, Effects should be inline too, Give every independently editable item its own JSX node, Give interactive elements a descriptive name, Keep all CSS styles inline, Keep composition metadata inline (+21 more)
 
 ### Community 56 - "Using calculateMetadata"
-Cohesion: 0.09
-Nodes (20): Matching dimensions of a video, Return value, Setting a default outName, Setting duration based on a video, Setting duration based on multiple videos, Transforming props, Using calculateMetadata, Getting video dimensions (+12 more)
+Cohesion: 0.06
+Nodes (31): Matching dimensions of a video, Return value, Setting a default outName, Setting duration based on a video, Setting duration based on multiple videos, Transforming props, Using calculateMetadata, Adding AI voiceover to a Remotion composition (+23 more)
 
 ### Community 57 - "ref_react"
-Cohesion: 0.23
-Nodes (15): contentOf(), SceneComponentProps, PlaceholderScene(), SCENES, SceneFrame(), TextContent, TextScene(), TitleContent (+7 more)
+Cohesion: 0.25
+Nodes (14): contentOf(), SceneComponentProps, PlaceholderScene(), SCENES, SceneFrame(), TextContent, TextScene(), TitleContent (+6 more)
 
 ### Community 58 - "Root.tsx"
-Cohesion: 0.18
-Nodes (16): Production(), productionMetadata(), RemotionRoot(), sampleProduction, sampleScene, sceneMetadata(), SceneComposition(), componentFor() (+8 more)
+Cohesion: 0.15
+Nodes (19): 構成, コンポジションの構成（Remotion のプロジェクト側）, Production(), productionMetadata(), RemotionRoot(), sampleProduction, sampleScene, sceneMetadata() (+11 more)
 
 ### Community 59 - "remotion-captions/REFERENCE.md"
-Cohesion: 0.09
-Nodes (18): Adding the Basic Captions element, Displaying captions alongside video content, Displaying captions in Remotion, Prerequisites, White-space preservation, Importing .srt subtitles into Remotion, Prerequisites, Reading an .srt file (+10 more)
+Cohesion: 0.08
+Nodes (23): Adding the Basic Captions element, Displaying captions alongside video content, Displaying captions in Remotion, Prerequisites, White-space preservation, Importing .srt subtitles into Remotion, Prerequisites, Reading an .srt file (+15 more)
 
-### Community 60 - "Graphify の graph.json だけを唯一の保存先にする設計だけでは、出来ない。pgvectorとの併用が必要。"
-Cohesion: 0.29
-Nodes (6): Graphify の graph.json だけを唯一の保存先にする設計だけでは、出来ない。pgvectorとの併用が必要。, Laravel の業務データと Graphify の生成グラフは役割を分ける, ダッシュボード設計ダッシュボードは二つ必要です, 動画設計, 必要環境, 特に、次の機能を設計段階から入れることを勧めます。
+### Community 60 - "VideoManager の設計方針"
+Cohesion: 0.14
+Nodes (13): AI 使用量のダッシュボードは二つ, DB スキーマのグラフ（`graphify-out/postgres/`）, VideoManager の設計方針, 保存先の役割, 動画の保存, 必要環境, 最初の完成目標, 検索 (+5 more)
 
 ### Community 61 - "GeminiVideoAnalyzerTest.php"
-Cohesion: 0.11
-Nodes (5): {closure#10}(), {closure#15}(), {closure#2}(), {closure#4}(), {closure#1}()
+Cohesion: 0.08
+Nodes (12): {closure#10}(), {closure#15}(), {closure#2}(), {closure#4}(), {closure#1}(), {closure#2}(), {closure#4}(), {closure#5}() (+4 more)
 
 ### Community 62 - "KnowledgeSource"
-Cohesion: 0.13
-Nodes (5): KnowledgeRevision, KnowledgeSource, DatabaseSeeder, KnowledgeRelationTypeSeeder, {closure#2}()
+Cohesion: 0.10
+Nodes (4): KnowledgeRevision, {closure#1}(), KnowledgeSource, KnowledgeSourceFactory
 
 ### Community 63 - "remotion-create/REFERENCE.md"
 Cohesion: 0.09
 Nodes (17): Designing a video, Empty folder, Follow-up, Interactivity Best Practices, Is this a multi-scene video?, Is this a timeline of clips?, Non-empty folder, Open the preview before building the video (+9 more)
 
 ### Community 64 - "場面の content の形式"
-Cohesion: 0.10
-Nodes (16): Gemini の出力全体, remotion.chart（グラフ）, remotion.clip（動画の切り出し）, remotion.code（コード）, remotion.diagram（図解）, remotion.image（静止画）, remotion.split（画面分割）, remotion.text（箇条書き・説明文） (+8 more)
+Cohesion: 0.11
+Nodes (18): Gemini の出力全体, remotion.chart（グラフ）, remotion.clip（動画の切り出し）, remotion.code（コード）, remotion.diagram（図解）, remotion.image（静止画）, remotion.split（画面分割）, remotion.text（箇条書き・説明文） (+10 more)
 
 ### Community 65 - "Laravel Sail Docker Service"
 Cohesion: 0.33
@@ -460,13 +512,9 @@ Nodes (6): Laravel Sail Docker Service, Mailpit Email Testing Service, Meilisear
 Cohesion: 0.20
 Nodes (9): LiveWire, Remotion Studio, このプロジェクトに必要なものインストールリスト, 実施内容（完了）, 実施内容（完了）, 書き出しのワーカー, 最初にインストールしたもの, 起動後にコンテナ側の拡張を確認するには、プロジェクト内で実行します。 (+1 more)
 
-### Community 67 - "ProductionScene"
-Cohesion: 0.11
-Nodes (4): ProductionScene, {closure#1}(), {closure#3}(), ProductionModelTest
-
-### Community 68 - "KnowledgeGraphSeeder.php"
-Cohesion: 0.16
-Nodes (9): MCP Servers, {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#7}(), {closure#8}() (+1 more)
+### Community 68 - "KnowledgeNode"
+Cohesion: 0.07
+Nodes (18): {closure#1}(), {closure#1}(), {closure#1}(), KnowledgeNode, {closure#1}(), {closure#2}(), {closure#3}(), {closure#9}() (+10 more)
 
 ### Community 69 - "From now on, please write in Japanese and answer in Japanese."
 Cohesion: 0.40
@@ -477,48 +525,48 @@ Cohesion: 0.12
 Nodes (15): A, AB, B, clip, __dir, even, havKm(), hs (+7 more)
 
 ### Community 71 - "ProductionPlan"
-Cohesion: 0.18
-Nodes (6): CancelScriptCandidates, {closure#1}(), {closure#1}(), RequestScriptCandidates, GenerateScriptCandidates, ProductionPlan
+Cohesion: 0.08
+Nodes (14): CancelScriptCandidates, {closure#1}(), {closure#1}(), RequestScriptCandidates, {closure#1}(), SaveSceneScripts, ScriptNotAllowedException, {closure#1}() (+6 more)
 
 ### Community 73 - "GenerateRunwayImage"
-Cohesion: 0.19
-Nodes (4): GenerateRunwayImage, {closure#2}(), RunwayClient, RunwayException
+Cohesion: 0.12
+Nodes (4): GenerateRunwayImage, RunwayTask, RunwayClient, RunwayException
 
 ### Community 83 - "AiUsageRecorder"
-Cohesion: 0.16
-Nodes (3): RecordAgentUsage, AiUsageRecorder, DummyVideoAnalyzer
-
-### Community 84 - "connected-compositions.md"
 Cohesion: 0.11
-Nodes (14): Connected compositions, Example, Make the component independent of its parent, Google Fonts with @remotion/google-fonts, Prerequisites, Using fonts in Remotion, Using in components, Available options (+6 more)
+Nodes (6): {closure#3}(), RecordAgentUsage, AiUsageRecorder, {closure#1}(), {closure#2}(), DummyVideoAnalyzer
+
+### Community 84 - "google-fonts.md"
+Cohesion: 0.40
+Nodes (4): Google Fonts with @remotion/google-fonts, Prerequisites, Using fonts in Remotion, Using in components
 
 ### Community 85 - "remotion-markup/remotion-maps/techniques/cesium/scripts/prep-cesium-path.mjs"
 Cohesion: 0.12
 Nodes (15): A, AB, B, clip, __dir, even, havKm(), hs (+7 more)
 
 ### Community 86 - "windows/package.json"
-Cohesion: 0.11
-Nodes (18): dependencies, react, react-dom, remotion, @remotion/bundler, @remotion/google-fonts, @remotion/renderer, description (+10 more)
+Cohesion: 0.14
+Nodes (18): dependencies, react@19.3.0, react-dom@19.3.0, remotion@4.0.534, @remotion/bundler@4.0.534, @remotion/google-fonts@4.0.534, @remotion/renderer@4.0.534, description (+10 more)
 
 ### Community 87 - "GeminiModelsTest.php"
 Cohesion: 0.14
 Nodes (4): {closure#1}(), {closure#2}(), {closure#3}(), GeminiModelsTest
 
 ### Community 88 - "Using audio in Remotion"
-Cohesion: 0.11
-Nodes (15): Delaying, Importing Audio, Looping, Muting, Pitch, Prerequisites, Speed, Trimming (+7 more)
+Cohesion: 0.20
+Nodes (10): Delaying, Importing Audio, Looping, Muting, Pitch, Prerequisites, Speed, Trimming (+2 more)
 
 ### Community 89 - "remotion-saas/REFERENCE.md"
 Cohesion: 0.12
 Nodes (14): Angular, Choosing a template or a framework, Rendering, Svelte, The `<Player>`, With Vue, Azure Container Apps, Cloudflare Containers (+6 more)
 
 ### Community 90 - "Remotion のテーブル設計"
-Cohesion: 0.11
-Nodes (14): Remotion のテーブル設計, Runway との違い, コンポジションの構成（Remotion のプロジェクト側）, テーブル：production_renders を Remotion の書き出し記録にする, 出典, 変更する列, 実行のしかた, 後で決めること (+6 more)
+Cohesion: 0.14
+Nodes (13): Remotion のテーブル設計, Runway との違い, テーブル：production_renders を Remotion の書き出し記録にする, 出典, 変更する列, 実行のしかた, 後で決めること, 書き出しの種類 (+5 more)
 
-### Community 91 - "VideoAnalysis"
-Cohesion: 0.17
-Nodes (4): VideoAnalysis, {closure#1}(), KnowledgeSourceFactory, VideoAnalysisTest
+### Community 91 - "KnowledgeCodeLink"
+Cohesion: 0.10
+Nodes (6): {closure#1}(), {closure#2}(), KnowledgeCodeLink, {closure#1}(), {closure#2}(), {closure#3}()
 
 ### Community 92 - "remotion-best-practices/remotion-maps/techniques/cesium/assets/CesiumFlythrough.tsx"
 Cohesion: 0.20
@@ -528,52 +576,64 @@ Nodes (11): bearing(), CesiumFlythrough(), CesiumFlythroughProps, clamp(), Flyov
 Cohesion: 0.20
 Nodes (11): bearing(), CesiumFlythrough(), CesiumFlythroughProps, clamp(), FlyoverMode, havKm(), lerp(), loadCesium() (+3 more)
 
-### Community 94 - "NarrationTiming"
-Cohesion: 0.16
-Nodes (6): ApplyScriptCandidate, {closure#1}(), {closure#1}(), SaveSceneScripts, ScriptNotAllowedException, NarrationTiming
-
 ### Community 95 - "Illuminate\Database\Eloquent\Factories\Factory"
-Cohesion: 0.15
-Nodes (3): KnowledgeEdgeFactory, KnowledgeRelationTypeFactory, ProductionAssetFactory
+Cohesion: 0.17
+Nodes (5): KnowledgeEdgeFactory, KnowledgeRelationTypeFactory, RunwayTaskInputFactory, RunwayTaskOutputFactory, VideoProductionFactory
 
 ### Community 96 - "ProductionRenderTest.php"
-Cohesion: 0.13
+Cohesion: 0.14
 Nodes (5): CancelProductionRender, {closure#1}(), {closure#1}(), {closure#2}(), {closure#5}()
 
-### Community 97 - "GeminiModels"
-Cohesion: 0.25
-Nodes (5): ScriptWriterAgent, {closure#4}(), GeminiModels, {closure#1}(), GeminiScriptWriter
+### Community 97 - "WebPageClient"
+Cohesion: 0.19
+Nodes (4): RegisterWebPage, WebPageClient, WebPageException, 登録（`RegisterWebPage`）
 
 ### Community 98 - "AgentConversationSeeder.php"
-Cohesion: 0.19
+Cohesion: 0.21
 Nodes (4): AgentConversationSeeder, {closure#2}(), {closure#3}(), {closure#4}()
 
-### Community 99 - "VideoAnalysisFlowTest.php"
-Cohesion: 0.19
-Nodes (7): RequestVideoAnalysis, AnalyzeVideo, VideoAnalyzer, analyze(), {closure#1}(), {closure#2}(), {closure#4}()
+### Community 99 - "PersonalResourceTest.php"
+Cohesion: 0.07
+Nodes (13): AnalyzeVideo, {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#6}(), PersonalResourceTest (+5 more)
+
+### Community 100 - "WebPageSourceTest.php"
+Cohesion: 0.16
+Nodes (5): {closure#1}(), {closure#1}(), {closure#3}(), {closure#4}(), {closure#5}()
 
 ### Community 101 - "transitions.md"
-Cohesion: 0.14
-Nodes (13): Available transition types, Calculating total composition duration, Duration calculation, Getting the duration of a transition, Mixing transitions and overlays, Overlay example, Overlay props, Prerequisites (+5 more)
+Cohesion: 0.12
+Nodes (14): Multi-scene videos, Available transition types, Calculating total composition duration, Duration calculation, Getting the duration of a transition, Mixing transitions and overlays, Overlay example, Overlay props (+6 more)
 
-### Community 104 - "Illuminate\Support\Facades\Schema"
-Cohesion: 0.15
+### Community 104 - "Illuminate\Database\Migrations\Migration"
+Cohesion: 0.12
 Nodes (3): {closure#1}(), {closure#1}(), {closure#1}()
 
 ### Community 105 - "compilerOptions"
 Cohesion: 0.15
 Nodes (12): compilerOptions, esModuleInterop, forceConsistentCasingInFileNames, jsx, module, moduleResolution, noEmit, resolveJsonModule (+4 more)
 
+### Community 106 - "ProductionAsset"
+Cohesion: 0.19
+Nodes (3): DeleteProductionAsset, UploadProductionAsset, ProductionAsset
+
 ### Community 107 - "KnowledgeCurator.php"
-Cohesion: 0.27
-Nodes (7): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}(), {closure#8}(), {closure#9}()
+Cohesion: 0.26
+Nodes (6): {closure#1}(), {closure#10}(), {closure#2}(), {closure#4}(), {closure#5}(), {closure#6}()
 
 ### Community 108 - "Process"
 Cohesion: 0.17
 Nodes (11): Edge cases, Glob mapping, Ground Rules (read before you start), Infer Conventions, Process, Step 0: Orient, Step 1: Predefined sweep, Step 2: Open-ended pass (+3 more)
 
-### Community 113 - "Architecture Best Practices"
+### Community 109 - "GeminiModels"
 Cohesion: 0.18
+Nodes (4): GeminiModels, GeminiScriptWriter, {closure#1}(), ProductionScriptTest
+
+### Community 110 - "RunwayImage.php"
+Cohesion: 0.23
+Nodes (3): {closure#2}(), RunwayImage, PersonImagePrompt
+
+### Community 113 - "Architecture Best Practices"
+Cohesion: 0.17
 Nodes (11): Architecture Best Practices, Depend on Contracts at Boundaries, Extract Focused Business Operations, Follow Framework Conventions, Inject Required Dependencies, Specify a Deterministic Sort Order, Use Atomic Locks for Race Conditions, Use `Concurrency::run()` for Parallel Execution (+3 more)
 
 ### Community 114 - "MapTiler maps in Remotion"
@@ -589,24 +649,28 @@ Cohesion: 0.18
 Nodes (10): Basic Usage, Common Pitfalls, CSS-First Configuration, Dark Mode, Documentation, Import Syntax, Replaced Utilities, Spacing (+2 more)
 
 ### Community 117 - "testing-best-practices/SKILL.md"
-Cohesion: 0.18
-Nodes (6): Built-in Laravel Assertion Methods, How to Find Test Framework Features, Security Tests, Data Providers, Each Test Makes Its Own Data, Factories and Test Data
+Cohesion: 0.29
+Nodes (3): Built-in Laravel Assertion Methods, How to Find Test Framework Features, Security Tests
 
-### Community 120 - "RequestProductionRender.php"
-Cohesion: 0.31
-Nodes (4): RenderNotAllowedException, {closure#1}(), {closure#2}(), RequestProductionRender
+### Community 118 - "VideoAnalysis"
+Cohesion: 0.15
+Nodes (6): AnalysisAlreadyRunningException, {closure#1}(), RequestVideoAnalysis, {closure#3}(), VideoAnalysis, VideoAnalysisFlowTest
 
-### Community 123 - "RemotionInput"
-Cohesion: 0.31
-Nodes (4): {closure#1}(), {closure#2}(), RemotionInput, 決まったことによる設計書の変更
+### Community 120 - "ProductionScene"
+Cohesion: 0.09
+Nodes (10): RenderNotAllowedException, {closure#1}(), {closure#2}(), RequestProductionRender, RemotionStudioController, ProductionScene, {closure#1}(), {closure#2}() (+2 more)
+
+### Community 124 - "ScriptContext.php"
+Cohesion: 0.12
+Nodes (4): ApplyScriptCandidate, {closure#1}(), NarrationTiming, {closure#1}()
 
 ### Community 125 - "productions/⚡show.blade.php"
-Cohesion: 0.20
-Nodes (9): applyCandidate, cancelRender({{ $render->id }}), cancelRender({{ $running->id }}), cancelScript, deleteAsset({{ $asset->id }}), renderStill({{ $scene->id }}), renderVideo(, requestScript (+1 more)
+Cohesion: 0.22
+Nodes (8): applyCandidate, cancelRender, cancelScript, deleteAsset, renderStill, renderVideo, requestScript, saveScripts
 
 ### Community 126 - "knowledge/⚡show.blade.php"
-Cohesion: 0.20
-Nodes (9): chooseCodePath(@js($candidate)), confirm, confirmCodeLink({{ $link->id }}), confirmEdge({{ $edge->id }}), deprecate, deprecateCodeLink({{ $link->id }}), deprecateEdge({{ $edge->id }}), edit (+1 more)
+Cohesion: 0.22
+Nodes (8): chooseCodePath, confirmCodeLink, confirmEdge, deprecateCodeLink, deprecateEdge, edit, confirm, deprecate
 
 ### Community 127 - "Advanced Query Best Practices"
 Cohesion: 0.20
@@ -656,9 +720,21 @@ Nodes (9): Animated flight route example, Basic map example, Camera guidance, Co
 Cohesion: 0.20
 Nodes (9): 1. 使い分けの原則, 2. 場面の種類, 3. 組み合わせの例, 4. できないこと・注意すること, 5. 確認が必要なこと, Remotion の場面, Runway の場面, 出典 (+1 more)
 
-### Community 146 - "ProductionTemplate"
-Cohesion: 0.22
-Nodes (4): {closure#1}(), {closure#2}(), ProductionTemplate, {closure#1}()
+### Community 142 - "YouTubeVideoId"
+Cohesion: 0.21
+Nodes (3): YouTubeVideoId, ExampleTest, YouTubeVideoIdTest
+
+### Community 143 - "KnowledgeGraphExporter.php"
+Cohesion: 0.14
+Nodes (8): {closure#2}(), ExportKnowledgeGraph, {closure#1}(), RunCodeAgent, {closure#1}(), {closure#2}(), {closure#4}(), KnowledgeGraphExporter
+
+### Community 145 - "environment"
+Cohesion: 0.15
+Nodes (13): MYSQL_ALLOW_EMPTY_PASSWORD, MYSQL_DATABASE, MYSQL_EXTRA_OPTIONS, MYSQL_PASSWORD, MYSQL_ROOT_HOST, MYSQL_ROOT_PASSWORD, MYSQL_USER, environment (+5 more)
+
+### Community 146 - "laravel.test"
+Cohesion: 0.17
+Nodes (12): WWWGROUP, args, context, dockerfile, build, depends_on, extra_hosts, image (+4 more)
 
 ### Community 147 - "Caching Best Practices"
 Cohesion: 0.22
@@ -690,19 +766,39 @@ Nodes (8): 1. The render harness (per frame), 2. Timing model — time-based; be
 
 ### Community 154 - "VideoManager の Remotion"
 Cohesion: 0.22
-Nodes (8): Studio の使い分け, VideoManager の Remotion, 公式の skill と違う点, 公式の skill の更新, 場面の部品を追加するとき, 実行のしかた, 書き出しの記録との対応, 構成
+Nodes (8): Laravel 側, Studio の使い分け, VideoManager の Remotion, 公式の skill と違う点, 公式の skill の更新, 場面の部品を追加するとき, 実行のしかた, 書き出しの記録との対応
 
 ### Community 155 - "scripts"
 Cohesion: 0.22
 Nodes (9): scripts, dev, post-autoload-dump, post-create-project-cmd, post-root-package-install, post-update-cmd, pre-package-uninstall, setup (+1 more)
 
-### Community 156 - "知識の詳細画面のテーブル設計"
-Cohesion: 0.22
-Nodes (8): knowledge_code_links（実装とコードの対応）【新規】, knowledge_edges.replaced_by_id（誤った関係の修正）【列の追加】, 作らないもの, 保存先の役割（design.md の表を具体化）, 「入力画像の品質確認」を開いたときのたどり方, 検索（タイトル・種類・関係・出典）, 画面の各部分とテーブル, 知識の詳細画面のテーブル設計
+### Community 156 - "Illuminate\Database\Eloquent\Builder"
+Cohesion: 0.10
+Nodes (15): {closure#1}(), {closure#2}(), {closure#1}(), VisibleToCurrentUser, Graphify の画面で知識をたどる（知識入りの graph.html）, knowledge_code_links（実装とコードの対応）【新規】, knowledge_edges.replaced_by_id（誤った関係の修正）【列の追加】, owner_id（本人だけが見られる知識）【列の追加】 (+7 more)
 
 ### Community 157 - "Windows ネイティブでの静止画書き出し"
 Cohesion: 0.22
 Nodes (8): Windows ネイティブでの静止画書き出し, オプション, 使い方（Windows の PowerShell）, 依存の置き場所（重要）, 入力 JSON の形, 制作画面の「静止画」ボタンから Windows で作る（静止画のサーバー）, 注意, 準備（初回だけ、Windows の PowerShell で）
+
+### Community 159 - "KnowledgeChatContext.php"
+Cohesion: 0.20
+Nodes (5): {closure#1}(), {closure#2}(), {closure#3}(), {closure#4}(), {closure#5}()
+
+### Community 160 - "KnowledgeRelationTypeSeeder"
+Cohesion: 0.09
+Nodes (4): KnowledgeRelationTypeSeeder, 「入力画像の品質確認」を開いたときのたどり方, BuildsFakeRepository, RemotionStudioTest
+
+### Community 161 - "Runway のテーブル設計"
+Cohesion: 0.18
+Nodes (10): runway_task_inputs（入力素材）, runway_task_outputs（生成されたファイル）, runway_tasks（生成依頼）, Runway のテーブル設計, テーブル一覧, 人物の画像を作るコマンド（runway:image）, 出典, 後で決めること (+2 more)
+
+### Community 162 - "User"
+Cohesion: 0.10
+Nodes (6): User, {closure#3}(), KnowledgeChat, KnowledgeChatContext, A. Validation & HTTP input, {closure#6}()
+
+### Community 163 - "KnowledgeChatTest"
+Cohesion: 0.20
+Nodes (3): {closure#3}(), {closure#6}(), KnowledgeChatTest
 
 ### Community 164 - "Blade and View Best Practices"
 Cohesion: 0.25
@@ -740,13 +836,13 @@ Nodes (7): Endpoint Coverage, Endpoint Tests, How to Write the Test, Tenant Isol
 Cohesion: 0.25
 Nodes (8): require, laravel/ai, laravel/fortify, laravel/framework, laravel/tinker, livewire/livewire, php, sebastian/diff
 
-### Community 175 - "Adding AI voiceover to a Remotion composition"
-Cohesion: 0.29
-Nodes (6): Adding AI voiceover to a Remotion composition, Delaying audio start, Dynamic composition duration with calculateMetadata, Generating audio with ElevenLabs, Prerequisites, Rendering audio in the component
+### Community 174 - "CreateProduction.php"
+Cohesion: 0.15
+Nodes (3): {closure#1}(), CreateProduction, ProductionTemplate
 
 ### Community 176 - "laravel-best-practices/SKILL.md"
-Cohesion: 0.29
-Nodes (5): Consistency First, Decision Rules, How to Apply, Laravel Best Practices, Rule Index
+Cohesion: 0.17
+Nodes (10): Configuration Best Practices, Name Repeated Domain Values, Protect Production Secrets, Read Environment Variables in Configuration Files, Use `App::environment()` for Environment Checks, Consistency First, Decision Rules, How to Apply (+2 more)
 
 ### Community 177 - "Collection Best Practices"
 Cohesion: 0.29
@@ -816,9 +912,13 @@ Nodes (6): Assertions, Coverage, Data and Determinism, Names and Structure, Revi
 Cohesion: 0.29
 Nodes (7): pestphp/pest-plugin, php-http/discovery, config, allow-plugins, optimize-autoloader, preferred-install, sort-packages
 
-### Community 196 - "Configuration Best Practices"
-Cohesion: 0.33
-Nodes (5): Configuration Best Practices, Name Repeated Domain Values, Protect Production Secrets, Read Environment Variables in Configuration Files, Use `App::environment()` for Environment Checks
+### Community 195 - "AnalysisResult"
+Cohesion: 0.20
+Nodes (4): {closure#1}(), AnalysisResult, GeminiWebPageAnalyzer, WebPageContent
+
+### Community 196 - "Detection Checklist"
+Cohesion: 0.20
+Nodes (9): B. Controllers & routing, C. Authorization, D. Eloquent & models, Detection Checklist, E. Architecture & organization, F. Frontend & views, G. Database & migrations, I. Responses & API resources (+1 more)
 
 ### Community 197 - "Remotion Maps"
 Cohesion: 0.33
@@ -864,6 +964,10 @@ Nodes (5): Moving Map Render Stability, Plate sizing and sharpness, Required pat
 Cohesion: 0.33
 Nodes (5): File Layout, Grouping, Naming and Structure, Naming Tests, Test Class and Methods
 
+### Community 209 - "pgsql"
+Cohesion: 0.20
+Nodes (10): PGPASSWORD, POSTGRES_DB, POSTGRES_PASSWORD, POSTGRES_USER, environment, image, networks, ports (+2 more)
+
 ### Community 213 - "Flyover data sources"
 Cohesion: 0.40
 Nodes (4): City, Flyover data sources, Landscape, Why not extruded buildings
@@ -902,7 +1006,11 @@ Nodes (3): Dynamic image paths, Getting image dimensions, Sizing and positioning
 
 ### Community 235 - "knowledge/⚡index.blade.php"
 Cohesion: 0.50
-Nodes (3): confirm({{ $node->id }}), deprecate({{ $node->id }}), $set(
+Nodes (3): knowledge.chat, confirm, deprecate
+
+### Community 249 - "Delaying, trimming"
+Cohesion: 0.22
+Nodes (8): Delaying, trimming, `durationInFrames`, Fallback, `from`, `loop`, Order of operations, `playbackRate`, `trimBefore`
 
 ### Community 251 - "autoload-dev"
 Cohesion: 0.67
@@ -912,25 +1020,121 @@ Nodes (3): autoload-dev, psr-4, Tests\\
 Cohesion: 0.67
 Nodes (3): extra, laravel, dont-discover
 
+### Community 272 - "services"
+Cohesion: 0.22
+Nodes (8): image, networks, ports, networks, sail, driver, services, mailpit
+
+### Community 273 - "volumes"
+Cohesion: 0.22
+Nodes (9): driver, driver, driver, driver, volumes, sail-meilisearch, sail-mysql, sail-pgsql (+1 more)
+
+### Community 276 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 277 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 278 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 279 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 280 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 281 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 282 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 283 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 284 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 285 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 286 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 287 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 288 - "interface"
+Cohesion: 0.25
+Nodes (7): interface, brand_color, default_prompt, display_name, icon_large, icon_small, short_description
+
+### Community 289 - "meilisearch"
+Cohesion: 0.25
+Nodes (8): MEILI_NO_ANALYTICS, MEILI_UPGRADE_DB, environment, image, networks, ports, volumes, meilisearch
+
+### Community 290 - ".create"
+Cohesion: 0.29
+Nodes (5): Control Mass Assignment, Data Providers, Each Test Makes Its Own Data, Factories and Test Data, Record Construction
+
+### Community 294 - "Routing and Controller Best Practices"
+Cohesion: 0.29
+Nodes (6): Keep Controllers Focused on HTTP Concerns, Organize Controllers Around Resources, Routing and Controller Best Practices, Scope Nested Bindings, Use Implicit Route Model Binding, Use Resource Routes for Resourceful Actions
+
+### Community 295 - "retries"
+Cohesion: 0.57
+Nodes (7): retries, test, timeout, healthcheck, healthcheck, healthcheck, healthcheck
+
+### Community 297 - "environment"
+Cohesion: 0.33
+Nodes (6): IGNITION_LOCAL_SITES_PATH, LARAVEL_SAIL, WWWUSER, XDEBUG_CONFIG, XDEBUG_MODE, environment
+
+### Community 298 - "0001_01_01_000000_create_users_table.php"
+Cohesion: 0.33
+Nodes (3): {closure#1}(), {closure#2}(), {closure#3}()
+
+### Community 299 - "2026_10_07_000005_create_runway_task_outputs_table.php"
+Cohesion: 0.33
+Nodes (3): {closure#1}(), {closure#2}(), {closure#3}()
+
+### Community 301 - "redis"
+Cohesion: 0.40
+Nodes (5): image, networks, ports, volumes, redis
+
+### Community 302 - "selenium"
+Cohesion: 0.40
+Nodes (5): extra_hosts, image, networks, volumes, selenium
+
 ## Knowledge Gaps
-- **965 isolated node(s):** `FlyoverMode`, `__dir`, `START`, `clip`, `even` (+960 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1441 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **113 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **34 isolated node(s):** `admin.layout`, `admin.layout`, `newConversation`, `knowledge.chat`, `confirm` (+29 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1761 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **111 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `User` connect `User` to `Illuminate\Database\Eloquent\Model`, `KnowledgeNode`, `FortifyServiceProvider.php`, `TestCase`, `ProductionAssetTest`, `YouTubeClient`, `ProductionPagesTest`, `RemotionStudioTest`, `User.php`, `VideoProduction`, `Video`, `ProductionRender`, `Security Best Practices`, `Convention and Style Best Practices`, `GeminiVideoAnalyzerTest.php`, `KnowledgeSource`, `KnowledgeGraphSeeder.php`, `GenerateRunwayImage`, `VideoAnalysis`, `ProductionRenderTest.php`, `AgentConversationSeeder.php`, `VideoAnalysisFlowTest.php`, `KnowledgeNodeFactory.php`, `KnowledgeCurator.php`, `ProductionScriptTest`, `GenerateRunwayImage.php`, `VideoAnalysisFlowTest`, `VideoRegistrationTest`, `RequestProductionRender.php`, `AiUsageLog`?**
-  _High betweenness centrality (0.147) - this node is a cross-community bridge._
-- **Why does `RemotionInput` connect `RemotionInput` to `RequestProductionRender.php`, `.durationInFrames`, `web.php`?**
-  _High betweenness centrality (0.131) - this node is a cross-community bridge._
-- **Why does `KnowledgeNode` connect `KnowledgeNode` to `Illuminate\Database\Eloquent\Model`, `TestCase`, `VideoProduction.php`, `KnowledgeEdge`, `VideoProduction`, `GeminiVideoAnalyzer.php`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `KnowledgeCodeLink.php`, `RunwayTask`, `User`, `GeminiVideoAnalyzerTest.php`, `KnowledgeSource`, `KnowledgeGraphSeeder.php`, `VideoAnalysis`, `Illuminate\Database\Eloquent\Factories\Factory`, `VideoAnalysisFlowTest.php`, `KnowledgeNodeFactory.php`, `KnowledgeCurator.php`, `ProductionScriptTest`, `VideoAnalysisFlowTest`, `VideoRegistrationTest`?**
-  _High betweenness centrality (0.079) - this node is a cross-community bridge._
-- **What connects `FlyoverMode`, `__dir`, `START` to the rest of the system?**
-  _965 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `Reading an .srt file` connect `remotion-captions/REFERENCE.md` to `KnowledgeCandidateWriter`?**
+  _High betweenness centrality (0.184) - this node is a cross-community bridge._
+- **What connects `admin.layout`, `admin.layout`, `newConversation` to the rest of the system?**
+  _34 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Illuminate\Database\Eloquent\Model` be split into smaller, more focused modules?**
-  _Cohesion score 0.1225071225071225 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.13548387096774195 - nodes in this community are weakly interconnected._
+- **Why does `User` connect `User` to `Illuminate\Database\Eloquent\Model`, `KnowledgeCuratorTest`, `FortifyServiceProvider.php`, `TestCase`, `ProductionAssetTest`, `KnowledgeCandidateWriter`, `Illuminate\Database\Eloquent\Builder`, `KnowledgeChatContext.php`, `KnowledgeRelationTypeSeeder`, `.create`, `KnowledgeChatTest`, `VideoProduction`, `Video`, `ProductionRender`, `CreateProduction.php`, `Convention and Style Best Practices`, `PersonalFileReader`, `GeminiVideoAnalyzerTest.php`, `KnowledgeSource`, `KnowledgeNode`, `GenerateRunwayImage`, `ProductionPlan.php`, `ProductionRenderTest.php`, `WebPageClient`, `AgentConversationSeeder.php`, `PersonalResourceTest.php`, `WebPageSourceTest.php`, `KnowledgeNodeFactory.php`, `ProductionAsset`, `KnowledgeCurator.php`, `GeminiModels`, `VideoFactory.php`, `VideoAnalysis`, `VideoRegistrationTest`, `ProductionScene`?**
+  _High betweenness centrality (0.184) - this node is a cross-community bridge._
 - **Should `Illuminate\Database\Schema\Blueprint` be split into smaller, more focused modules?**
-  _Cohesion score 0.12318840579710146 - nodes in this community are weakly interconnected._
-- **Should `KnowledgeNode` be split into smaller, more focused modules?**
-  _Cohesion score 0.06949152542372881 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.11692307692307692 - nodes in this community are weakly interconnected._
+- **Should `KnowledgeCuratorTest` be split into smaller, more focused modules?**
+  _Cohesion score 0.09863945578231292 - nodes in this community are weakly interconnected._
+- **Should `package.json` be split into smaller, more focused modules?**
+  _Cohesion score 0.11594202898550725 - nodes in this community are weakly interconnected._
