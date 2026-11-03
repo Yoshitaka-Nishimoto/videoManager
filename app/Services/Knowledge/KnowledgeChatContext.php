@@ -126,6 +126,18 @@ class KnowledgeChatContext
     }
 
     /**
+     * tinker で確かめる用：本人が見られる確認済みの概念のクエリ。
+     *
+     * @param  ?string  $genre  ジャンルのキー（VideoProduction::GENRES のキー。例 'ai'）
+     * @param  ?Builder<KnowledgeNode>  $query  土台にするクエリ（null なら KnowledgeNode::query()）
+     * @return Builder<KnowledgeNode>
+     */
+    public static function userSet(User $user, ?string $genre = null, ?Builder $query = null): Builder
+    {
+        return app(self::class)->confirmedConcepts($user, $genre, $query);
+    }
+
+    /**
      * @param  ?Builder<KnowledgeNode>  $query
      * @return Builder<KnowledgeNode>
      */
