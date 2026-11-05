@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Models\AiUsageLog;
+use App\Services\Ai\AiErrorMessage;
 use App\Services\AiUsage\AiUsageRecorder;
 use Laravel\Ai\Events\AgentFailed;
 use Laravel\Ai\Events\AgentPrompted;
@@ -45,7 +46,7 @@ class RecordAgentUsage
             inputTokens: 0,
             outputTokens: 0,
             succeeded: false,
-            errorMessage: $event->exception->getMessage(),
+            errorMessage: AiErrorMessage::for($event->exception),
             defaultFeature: class_basename($event->prompt->agent),
         );
     }

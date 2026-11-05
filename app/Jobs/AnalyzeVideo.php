@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\AiUsageLog;
 use App\Models\VideoAnalysis;
+use App\Services\Ai\AiErrorMessage;
 use App\Services\AiUsage\AiUsageRecorder;
 use App\Services\Analysis\VideoAnalyzer;
 use App\Services\Knowledge\KnowledgeCandidateWriter;
@@ -66,7 +67,7 @@ class AnalyzeVideo implements ShouldQueue
     {
         $this->analysis->update([
             'status' => VideoAnalysis::STATUS_FAILED,
-            'error_message' => $exception?->getMessage() ?? '分析に失敗しました。',
+            'error_message' => $exception !== null ? AiErrorMessage::for($exception) : '分析に失敗しました。',
         ]);
     }
 }

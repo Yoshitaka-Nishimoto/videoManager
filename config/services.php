@@ -47,7 +47,7 @@ return [
     'video_analyzer' => [
         'driver' => env('VIDEO_ANALYZER', 'dummy'),
         'gemini_model' => env('GEMINI_ANALYSIS_MODEL'),
-        'gemini_fallback_models' => array_values(array_filter(array_map('trim', explode(',', (string) env('GEMINI_ANALYSIS_FALLBACK_MODELS', 'gemini-3.5-flash,gemini-3.7-flash,gemini-3.8-flash'))))),
+        'gemini_fallback_models' => array_values(array_filter(array_map('trim', explode(',', (string) env('GEMINI_ANALYSIS_FALLBACK_MODELS', 'gemini-3.7-flash,gemini-3.8-flash,gemini-3.5-flash-lite'))))),
         // 文章だけを渡す分析（Web ページ・個人のファイル）と台本の候補に使う AI（gemini / openai）。
         // YouTube の動画を URL のまま見られるのは Gemini だけなので、動画の分析はこの設定によらず Gemini。
         'text_provider' => env('TEXT_AI_PROVIDER', 'gemini'),

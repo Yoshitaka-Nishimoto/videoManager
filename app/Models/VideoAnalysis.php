@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -90,6 +91,16 @@ class VideoAnalysis extends Model
     public function knowledgeNode(): HasOne
     {
         return $this->hasOne(KnowledgeNode::class);
+    }
+
+    /**
+     * この分析での AI の呼び出し。混雑などで代わりのモデルに切り替えたときは、試したモデルごとに 1 件ずつある。
+     *
+     * @return MorphMany<AiUsageLog, $this>
+     */
+    public function aiUsageLogs(): MorphMany
+    {
+        return $this->morphMany(AiUsageLog::class, 'usable');
     }
 
     /**

@@ -62,7 +62,10 @@ new #[Title('情報源の詳細')] class extends Component
     #[Computed]
     public function analyses(): Collection
     {
-        return $this->video->analyses()->with('requestedBy')->orderByDesc('version')->get();
+        return $this->video->analyses()
+            ->with(['requestedBy', 'aiUsageLogs' => fn ($query) => $query->orderBy('id')])
+            ->orderByDesc('version')
+            ->get();
     }
 
     #[Computed]
@@ -237,6 +240,26 @@ new #[Title('情報源の詳細')] class extends Component
                                 @endif
                                 @if ($analysis->error_message)
                                     <p class="text-xs text-red-600">{{ $analysis->error_message }}</p>
+                                @endif
+                                {{-- 混雑などで代わりのモデルに切り替えたときは、試した順に結果を出す。 --}}
+                                @if ($analysis->aiUsageLogs->count() > 1 || $analysis->aiUsageLogs->contains('succeeded', false))
+                                    <details class="mt-1 text-xs">
+                                        <summary class="cursor-pointer text-[#706f6c] dark:text-[#A1A09A]">試したモデル（{{ $analysis->aiUsageLogs->count() }}件）</summary>
+                                        <ol class="mt-1 list-decimal space-y-0.5 pl-5">
+                                            @foreach ($analysis->aiUsageLogs as $log)
+                                                <li wire:key="analysis-{{ $analysis->id }}-attempt-{{ $log->id }}">
+                                                    <span class="text-[#706f6c] dark:text-[#A1A09A]">{{ $log->created_at->format('H:i:s') }}</span>
+                                                    {{ $log->model }}：
+                                                    @if ($log->succeeded)
+                                                        <span class="text-green-700 dark:text-green-500">成功</span>
+                                                    @else
+                                                        <span class="text-red-600">失敗</span>
+                                                        <span class="text-[#706f6c] dark:text-[#A1A09A]">{{ $log->error_message }}</span>
+                                                    @endif
+                                                </li>
+                                            @endforeach
+                                        </ol>
+                                    </details>
                                 @endif
                             </td>
                             <td class="py-2 pr-4">{{ $analysis->model ?? '—' }}</td>

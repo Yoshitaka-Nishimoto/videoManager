@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\AiUsageLog;
 use App\Models\ProductionPlan;
+use App\Services\Ai\AiErrorMessage;
 use App\Services\AiUsage\AiUsageRecorder;
 use App\Services\Script\ScriptWriter;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -72,7 +73,7 @@ class GenerateScriptCandidates implements ShouldQueue
 
         $this->plan->update([
             'script_status' => ProductionPlan::SCRIPT_FAILED,
-            'script_error' => Str::limit($exception?->getMessage() ?? '台本の候補を作れませんでした。', 2000),
+            'script_error' => Str::limit($exception !== null ? AiErrorMessage::for($exception) : '台本の候補を作れませんでした。', 2000),
             'script_started_at' => null,
         ]);
     }

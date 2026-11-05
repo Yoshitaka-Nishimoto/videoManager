@@ -150,6 +150,20 @@ class VideoAnalysisFlowTest extends TestCase
             ->assertSee('候補');
     }
 
+    public function test_the_page_shows_each_model_tried_for_the_analysis(): void
+    {
+        $analysis = VideoAnalysis::factory()->completed()->for($this->video)->create();
+        AiUsageLog::factory()->failed()->for($analysis, 'usable')->create([
+            'model' => 'gemini-3.6-flash',
+            'error_message' => 'AI provider [gemini] is overloaded.（503：混雑中）',
+        ]);
+        AiUsageLog::factory()->for($analysis, 'usable')->create(['model' => 'gemini-3.7-flash']);
+
+        Livewire::test('pages::videos.show', ['video' => $this->video])
+            ->assertSee('試したモデル（2件）')
+            ->assertSeeInOrder(['gemini-3.6-flash', '失敗', '503：混雑中', 'gemini-3.7-flash', '成功']);
+    }
+
     public function test_a_failing_analyzer_marks_the_analysis_as_failed(): void
     {
         $this->app->bind(VideoAnalyzer::class, fn () => new class implements VideoAnalyzer
