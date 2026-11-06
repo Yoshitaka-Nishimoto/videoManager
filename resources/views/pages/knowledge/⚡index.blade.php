@@ -7,6 +7,7 @@ use App\Models\VideoProduction;
 use App\Services\Knowledge\KnowledgeCurator;
 use App\Services\Knowledge\KnowledgeEmbedder;
 use App\Services\Knowledge\KnowledgeRuleViolation;
+use App\Services\Knowledge\KnowledgeSearch;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -33,11 +34,11 @@ new #[Title('知識')] class extends Component
     #[Url]
     public string $q = '';
 
-    /** 意味で検索する（pgvector）。名称の文字が一致しなくても、意味の近いノードを類似度の高い順に出す。 */
+    /** 意味で検索する。名称・説明・出典のキーワードの一致と、意味の近さ（pgvector）を合わせて、関係の深い順に出す（KnowledgeSearch）。 */
     #[Url]
     public bool $semantic = false;
 
-    /** 意味で検索するときに出す件数の上限と、類似度の下限（関連のない概念は 0.6 未満になることが多い）。 */
+    /** 意味で検索するときに出す件数の上限と、意味の近さだけで見つけるときの類似度の下限（関連のない概念は 0.6 未満になることが多い）。 */
     public const SEMANTIC_LIMIT = 30;
 
     public const SEMANTIC_MIN_SIMILARITY = 0.6;
@@ -65,7 +66,7 @@ new #[Title('知識')] class extends Component
     #[Computed]
     public function nodes(): LengthAwarePaginator
     {
-        $nodes = $this->semanticVector !== null ? $this->similarNodes($this->semanticVector) : $this->matchingNodes();
+        $nodes = $this->searchingByMeaning() ? $this->searchedNodes($this->semanticVector) : $this->matchingNodes();
 
         // 概念は出どころの動画を示すため、自身と抽出元の関係（廃止を除く）の出典を動画付きで読み込む。
         $withVideo = fn ($query) => $query->whereNotNull('video_id')->with('video');
@@ -82,14 +83,22 @@ new #[Title('知識')] class extends Component
     }
 
     /**
-     * 意味で検索するときの、検索語の埋め込み。意味で検索しないとき・埋め込みを作れなかったときは null（名称で検索する）。
+     * 意味で検索しているか。ファイルのパスで探しているときは、名称・パスの検索にする。
+     */
+    public function searchingByMeaning(): bool
+    {
+        return $this->semantic && trim($this->q) !== '' && ! $this->searchingCode();
+    }
+
+    /**
+     * 意味で検索するときの、検索語の埋め込み。意味で検索しないとき・埋め込みを作れなかったときは null（キーワードの一致だけで探す）。
      *
      * @return ?array<int, float>
      */
     #[Computed]
     public function semanticVector(): ?array
     {
-        if (! $this->semantic || trim($this->q) === '' || $this->searchingCode() || ! app(KnowledgeEmbedder::class)->enabled()) {
+        if (! $this->searchingByMeaning() || ! app(KnowledgeEmbedder::class)->enabled()) {
             return null;
         }
 
@@ -97,28 +106,27 @@ new #[Title('知識')] class extends Component
             return app(KnowledgeEmbedder::class)->vectorFor(trim($this->q));
         } catch (Throwable $e) {
             Log::warning('意味で検索するための埋め込みを作れませんでした。', ['error' => $e->getMessage()]);
-            $this->addError('semantic', '意味で検索できなかったため、名称で検索しています（'.$e->getMessage().'）。');
+            $this->addError('semantic', '意味で検索できなかったため、名称・説明・出典のキーワードの一致だけで探しています（'.$e->getMessage().'）。');
 
             return null;
         }
     }
 
     /**
-     * 意味の近いノード（類似度の高い順、最大 SEMANTIC_LIMIT 件、1 ページ）。状態・種類・ジャンルの絞り込みは名称の検索と同じ。
+     * キーワードの一致と意味の近さを合わせたノード（関係の深い順、最大 SEMANTIC_LIMIT 件、1 ページ）。状態・種類・ジャンルの絞り込みは名称の検索と同じ。
      *
-     * @param  array<int, float>  $vector
+     * @param  ?array<int, float>  $vector  null なら、キーワードの一致だけで探す
      * @return LengthAwarePaginator<int, KnowledgeNode>
      */
-    private function similarNodes(array $vector): LengthAwarePaginator
+    private function searchedNodes(?array $vector): LengthAwarePaginator
     {
-        $nodes = app(KnowledgeEmbedder::class)->similarTo($vector, self::SEMANTIC_MIN_SIMILARITY)
-            ->when($this->status !== '', fn ($query) => $query->where('status', $this->status))
-            ->when($this->type !== '', fn ($query) => $query->where('node_type', $this->type))
-            ->when($this->genre !== '', fn ($query) => $query->inGenre($this->genre))
-            ->with('video')
-            ->withCount(['outgoingEdges', 'incomingEdges', 'sources'])
-            ->limit(self::SEMANTIC_LIMIT)
-            ->get();
+        $nodes = app(KnowledgeSearch::class)
+            ->search(trim($this->q), $vector, fn ($query) => $query
+                ->when($this->status !== '', fn ($query) => $query->where('status', $this->status))
+                ->when($this->type !== '', fn ($query) => $query->where('node_type', $this->type))
+                ->when($this->genre !== '', fn ($query) => $query->inGenre($this->genre)), self::SEMANTIC_LIMIT, self::SEMANTIC_MIN_SIMILARITY)
+            ->load('video')
+            ->loadCount(['outgoingEdges', 'incomingEdges', 'sources']);
 
         return new LengthAwarePaginator($nodes, $nodes->count(), self::SEMANTIC_LIMIT, 1);
     }
@@ -235,7 +243,7 @@ new #[Title('知識')] class extends Component
         <input
             type="search"
             @if ($semantic) wire:model.change="q" @else wire:model.live.debounce.300ms="q" @endif
-            placeholder="{{ $semantic ? '意味で検索（Enter で検索）' : '名称・ファイルのパスで検索' }}"
+            placeholder="{{ $semantic ? 'キーワード・意味で検索（Enter で検索）' : '名称・ファイルのパスで検索' }}"
             aria-label="名称・ファイルのパスで検索"
             class="w-full rounded-sm border border-[#19140035] bg-white px-3 py-1 sm:w-56 dark:border-[#3E3E3A] dark:bg-[#161615]"
         >
@@ -251,8 +259,8 @@ new #[Title('知識')] class extends Component
         <x-ai-thinking wire:loading.inline-flex wire:target="q, semantic" label="AI が意味の近いノードを探しています…" />
     @endif
     {{-- 埋め込みを先に作る（作れなかったときのエラーを、すぐ下に出すため）。 --}}
-    @if ($this->semanticVector !== null)
-        <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">「{{ trim($q) }}」と意味の近いノードを、類似度の高い順に表示しています（類似度 {{ $this::SEMANTIC_MIN_SIMILARITY }} 以上、最大 {{ $this::SEMANTIC_LIMIT }} 件）。</p>
+    @if ($this->searchingByMeaning() && $this->semanticVector !== null)
+        <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">「{{ trim($q) }}」が名称・説明・出典に一致するノードと、意味の近いノード（類似度 {{ $this::SEMANTIC_MIN_SIMILARITY }} 以上）を、関係の深い順に表示しています（最大 {{ $this::SEMANTIC_LIMIT }} 件）。</p>
     @endif
     @error('semantic')
         <p class="text-sm text-red-600">{{ $message }}</p>
@@ -297,6 +305,9 @@ new #[Title('知識')] class extends Component
                             @endif
                         </span>
                     </div>
+                    @isset($node->match_reasons)
+                        <p class="pl-[4.75rem] text-xs text-[#706f6c] dark:text-[#A1A09A]">見つかった理由：{{ collect($node->match_reasons)->map(fn (string $reason) => KnowledgeSearch::REASON_LABELS[$reason])->implode('、') }}</p>
+                    @endisset
                     @if ($node->relationLoaded('codeLinks') && $node->codeLinks->isNotEmpty())
                         <div class="pl-[4.75rem] font-mono text-xs text-[#706f6c] dark:text-[#A1A09A]">
                             @foreach ($node->codeLinks as $link)

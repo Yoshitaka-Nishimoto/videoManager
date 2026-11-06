@@ -167,12 +167,22 @@ class KnowledgeEmbedder
      */
     public function similarTo(array $vector, float $minSimilarity = 0.5): Builder
     {
-        return KnowledgeNode::query()
-            ->select('knowledge_nodes.*')
-            ->selectRaw('1 - (embedding <=> ?::vector) as similarity', [json_encode($vector)])
+        return $this->withSimilarity(KnowledgeNode::query()->select('knowledge_nodes.*'), $vector)
             ->whereNotNull('embedding')
             ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
             ->whereVectorSimilarTo('embedding', $vector, $minSimilarity);
+    }
+
+    /**
+     * 文との類似度（similarity、0〜1）を列に加える。埋め込みのないノードは null。列の選び方と絞り込みは呼び出し側で決める。
+     *
+     * @param  Builder<KnowledgeNode>  $query
+     * @param  array<int, float>  $vector
+     * @return Builder<KnowledgeNode>
+     */
+    public function withSimilarity(Builder $query, array $vector): Builder
+    {
+        return $query->selectRaw('1 - (embedding <=> ?::vector) as similarity', [json_encode($vector)]);
     }
 
     /**

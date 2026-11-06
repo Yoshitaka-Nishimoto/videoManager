@@ -8,6 +8,7 @@ use App\Models\KnowledgeCodeLink;
 use App\Models\KnowledgeEdge;
 use App\Models\KnowledgeNode;
 use App\Models\KnowledgeRelationType;
+use App\Models\KnowledgeSource;
 use App\Models\User;
 use App\Models\Video;
 use App\Models\VideoAnalysis;
@@ -148,9 +149,49 @@ class KnowledgeEmbeddingTest extends TestCase
             ->set('q', '品質をどう確かめるか')
             ->assertSee('入力画像の品質確認')
             ->assertSee('類似度 1.00')
+            ->assertSee('見つかった理由：意味が近い')
             ->assertDontSee('モデル階層による役割分担')
             ->assertDontSee('他人の品質の記録')
             ->assertDontSee('候補の品質チェック');
+    }
+
+    public function test_searching_by_meaning_also_finds_keywords_in_titles_descriptions_and_sources(): void
+    {
+        config(['services.knowledge_embeddings.enabled' => true]);
+        Queue::fake();
+        // 検索語「Graphify」は、どのノードとも意味が近くならない（短いキーワードで類似度が上がらない状態）。
+        Embeddings::fake(fn (EmbeddingsPrompt $prompt) => array_map(fn (string $text) => $this->vector($text === 'Graphify' ? 2 : 1), $prompt->inputs));
+        $user = User::factory()->create();
+
+        $both = KnowledgeNode::factory()->confirmed()->create(['title' => 'Graphify の導入判断', 'description' => null]);
+        $this->addSource($both, Video::factory()->create(['title' => 'Graphify を紹介する動画', 'summary' => null]));
+        $byTitle = KnowledgeNode::factory()->confirmed()->create(['title' => 'Graphify の使い方', 'description' => null]);
+        $byDescription = KnowledgeNode::factory()->confirmed()->create(['title' => '構文解析による関係抽出', 'description' => 'Graphify が AST で関係を取り出す。']);
+        $bySource = KnowledgeNode::factory()->confirmed()->create(['title' => 'ナレッジグラフによるコンテキスト圧縮', 'description' => null]);
+        $this->addSource($bySource, Video::factory()->create(['title' => 'AI にコードを読ませる', 'summary' => 'Graphify でトークンを減らす。']));
+        $byEdgeSource = KnowledgeNode::factory()->confirmed()->create(['title' => 'エージェント向けルール注入', 'description' => null]);
+        $unrelated = KnowledgeNode::factory()->confirmed()->create(['title' => 'モデル階層による役割分担', 'description' => null]);
+        $this->connect($byEdgeSource, KnowledgeRelationType::KEY_IMPLEMENTS, $unrelated);
+        $this->addSource($byEdgeSource->outgoingEdges()->first(), Video::factory()->create(['title' => 'Graphify の設定', 'summary' => null]));
+        KnowledgeNode::factory()->confirmed()->create(['title' => '他人の Graphify のメモ', 'description' => null, 'owner_id' => User::factory()->create()->id]);
+        $this->embedder->embed(KnowledgeNode::withoutGlobalScopes()->with('video')->get());
+
+        $this->actingAs($user);
+
+        $html = Livewire::test('pages::knowledge.index', ['status' => KnowledgeNode::STATUS_CONFIRMED])
+            ->set('semantic', true)
+            ->set('q', 'Graphify')
+            ->assertSee('見つかった理由：名称に一致、出典に一致')
+            ->assertSee('見つかった理由：説明に一致')
+            ->assertSee($bySource->title)
+            ->assertSee($byEdgeSource->title)
+            ->assertDontSee('意味が近い')
+            ->assertDontSee($unrelated->title)
+            ->assertDontSee('他人の Graphify のメモ')
+            ->html();
+
+        // 二つの一覧で見つかったものが、一つの一覧で見つかったものより先に来る。
+        $this->assertLessThan(strpos($html, $byTitle->title), strpos($html, $both->title));
     }
 
     public function test_the_knowledge_list_falls_back_to_the_title_when_the_embedding_fails(): void
@@ -165,8 +206,9 @@ class KnowledgeEmbeddingTest extends TestCase
         Livewire::test('pages::knowledge.index', ['status' => KnowledgeNode::STATUS_CONFIRMED])
             ->set('semantic', true)
             ->set('q', '品質')
-            ->assertSee('意味で検索できなかったため、名称で検索しています')
-            ->assertSee('入力画像の品質確認');
+            ->assertSee('意味で検索できなかったため、名称・説明・出典のキーワードの一致だけで探しています')
+            ->assertSee('入力画像の品質確認')
+            ->assertSee('見つかった理由：名称に一致');
     }
 
     public function test_the_command_embeds_stale_nodes_lists_short_descriptions_and_shows_duplicates(): void
@@ -235,6 +277,17 @@ class KnowledgeEmbeddingTest extends TestCase
             'source_node_id' => $source->id,
             'target_node_id' => $target->id,
             'relation_type_id' => KnowledgeRelationType::where('key', $relation)->value('id'),
+        ]);
+    }
+
+    private function addSource(KnowledgeNode|KnowledgeEdge $sourceable, Video $video): void
+    {
+        KnowledgeSource::factory()->create([
+            'sourceable_type' => $sourceable->getMorphClass(),
+            'sourceable_id' => $sourceable->id,
+            'video_analysis_id' => VideoAnalysis::factory()->create(['video_id' => $video->id])->id,
+            'video_id' => $video->id,
+            'excerpt' => null,
         ]);
     }
 
