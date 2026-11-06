@@ -6,6 +6,7 @@ use App\Models\AiUsageLog;
 use App\Models\KnowledgeEdge;
 use App\Models\KnowledgeNode;
 use App\Models\KnowledgeRelationType;
+use App\Models\KnowledgeSource;
 use App\Services\AiUsage\AiUsageRecorder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -33,6 +34,9 @@ class KnowledgeEmbedder
      * それより上にする（2026-10-23 の 98 件で確認）。
      */
     public const DUPLICATE_SIMILARITY = 0.9;
+
+    /** 概念の元の文に入れる出典の動画の数。多くの動画に出る概念で、名称・説明の比重が下がりすぎないように絞る。 */
+    public const MAX_SOURCE_VIDEOS = 5;
 
     public function __construct(private readonly AiUsageRecorder $usage) {}
 
@@ -68,6 +72,12 @@ class KnowledgeEmbedder
                     ->get()
                     ->map(fn ($link) => trim("{$link->path} {$link->symbol}"))
                     ->implode('、'),
+            ],
+            KnowledgeNode::TYPE_CONCEPT => [
+                "概念：{$node->title}",
+                "説明：{$node->description}",
+                // 利用者が打つ具体的な言葉（「Graphify」など）は、概念の名称・説明より動画のタイトルに入っていることが多い。
+                '出典の動画：'.$this->sourceVideoTitles($node),
             ],
             default => [KnowledgeNode::typeLabelFor($node->node_type)."：{$node->title}", "説明：{$node->description}"],
         };
@@ -203,6 +213,29 @@ class KnowledgeEmbedder
             ->with('targetNode')
             ->get()
             ->pluck('targetNode.title')
+            ->implode('、');
+    }
+
+    /**
+     * 概念の出典（自身と、廃止していない関係の出典）の動画のタイトル。古い出典の順に MAX_SOURCE_VIDEOS 本まで。
+     * ログイン中の処理から呼ばれても元の文が変わらないよう、見える範囲では絞らない（埋め込みは画面に出さない）。
+     */
+    private function sourceVideoTitles(KnowledgeNode $node): string
+    {
+        $edgeIds = KnowledgeEdge::withoutGlobalScopes()
+            ->where('source_node_id', $node->id)
+            ->where('status', '!=', KnowledgeNode::STATUS_DEPRECATED)
+            ->pluck('id');
+
+        return KnowledgeSource::withoutGlobalScopes()
+            ->join('videos', 'videos.id', '=', 'knowledge_sources.video_id')
+            ->where(fn ($query) => $query
+                ->where(fn ($q) => $q->where('sourceable_type', $node->getMorphClass())->where('sourceable_id', $node->id))
+                ->orWhere(fn ($q) => $q->where('sourceable_type', (new KnowledgeEdge)->getMorphClass())->whereIn('sourceable_id', $edgeIds)))
+            ->orderBy('knowledge_sources.id')
+            ->pluck('videos.title')
+            ->unique()
+            ->take(self::MAX_SOURCE_VIDEOS)
             ->implode('、');
     }
 

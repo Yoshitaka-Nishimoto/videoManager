@@ -58,6 +58,51 @@ class KnowledgeEmbeddingTest extends TestCase
         );
     }
 
+    public function test_a_concept_is_described_with_the_titles_of_its_source_videos(): void
+    {
+        $concept = KnowledgeNode::factory()->create(['title' => 'ナレッジグラフによるコンテキスト圧縮', 'description' => 'グラフで渡す量を減らす。']);
+        $other = KnowledgeNode::factory()->create();
+        $video = Video::factory()->create(['title' => 'Graphify を紹介する動画']);
+        $this->addSource($concept, $video);
+        $this->addSource($concept, $video);
+        $this->connect($concept, KnowledgeRelationType::KEY_IMPLEMENTS, $other);
+        $this->addSource($concept->outgoingEdges()->first(), Video::factory()->create(['title' => 'AI にコードを読ませる']));
+        $retired = KnowledgeEdge::factory()->create(['source_node_id' => $concept->id, 'target_node_id' => $other->id, 'status' => KnowledgeNode::STATUS_DEPRECATED]);
+        $this->addSource($retired, Video::factory()->create(['title' => '廃止した関係の動画']));
+
+        // 同じ動画は一度だけ、廃止した関係の出典は入れない。
+        $this->assertSame(
+            "概念：ナレッジグラフによるコンテキスト圧縮\n説明：グラフで渡す量を減らす。\n出典の動画：Graphify を紹介する動画、AI にコードを読ませる",
+            $this->embedder->text($concept),
+        );
+
+        foreach (range(1, KnowledgeEmbedder::MAX_SOURCE_VIDEOS) as $number) {
+            $this->addSource($concept, Video::factory()->create(['title' => "追加の動画 {$number}"]));
+        }
+
+        $this->assertStringEndsWith('追加の動画 3', $this->embedder->text($concept));
+        $this->assertSame("概念：{$other->title}\n説明：{$other->description}", $this->embedder->text($other));
+    }
+
+    public function test_adding_or_removing_a_source_queues_a_rebuild_of_the_concept_only(): void
+    {
+        $concept = KnowledgeNode::factory()->create();
+        $analysis = KnowledgeNode::factory()->forAnalysis()->create();
+        $target = KnowledgeNode::factory()->create();
+        $this->connect($concept, KnowledgeRelationType::KEY_IMPLEMENTS, $target);
+        config(['services.knowledge_embeddings.enabled' => true]);
+        Queue::fake();
+
+        $this->addSource($concept->outgoingEdges()->first(), Video::factory()->create());
+        $this->addSource($analysis, Video::factory()->create());
+        $analysis->sources()->first()->delete();
+        $this->addSource($concept, Video::factory()->create());
+        $concept->sources()->first()->delete();
+
+        Queue::assertPushed(EmbedKnowledgeNodes::class, fn ($job) => $job->nodeIds === [$concept->id]);
+        Queue::assertPushed(EmbedKnowledgeNodes::class, 3);
+    }
+
     public function test_a_video_is_described_with_the_summary_from_the_videos_table(): void
     {
         $video = Video::factory()->create(['title' => 'AI ニュース', 'summary' => '新しいモデルの発表をまとめた。']);
@@ -285,7 +330,7 @@ class KnowledgeEmbeddingTest extends TestCase
         KnowledgeSource::factory()->create([
             'sourceable_type' => $sourceable->getMorphClass(),
             'sourceable_id' => $sourceable->id,
-            'video_analysis_id' => VideoAnalysis::factory()->create(['video_id' => $video->id])->id,
+            'video_analysis_id' => (VideoAnalysis::where('video_id', $video->id)->first() ?? VideoAnalysis::factory()->create(['video_id' => $video->id]))->id,
             'video_id' => $video->id,
             'excerpt' => null,
         ]);

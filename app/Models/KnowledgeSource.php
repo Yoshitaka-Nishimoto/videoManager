@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\EmbedKnowledgeNodes;
 use App\Models\Concerns\HasOwner;
 use Database\Factories\KnowledgeSourceFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -41,6 +42,30 @@ class KnowledgeSource extends Model
                 default => null,
             };
         });
+
+        // 概念の埋め込みの元の文には出典の動画のタイトルが入るので、出典が増減したら作り直す（KnowledgeEmbedder::text）。
+        static::created(fn (KnowledgeSource $source) => EmbedKnowledgeNodes::dispatchFor([$source->conceptId()]));
+        static::deleted(fn (KnowledgeSource $source) => EmbedKnowledgeNodes::dispatchFor([$source->conceptId()]));
+    }
+
+    /**
+     * この出典で埋め込みの元の文が変わる概念（出典の付いた概念、または出典の付いた関係の接続元の概念）。概念でなければ null。
+     */
+    private function conceptId(): ?int
+    {
+        if (! config('services.knowledge_embeddings.enabled')) {
+            return null;
+        }
+
+        $nodeId = match ($this->sourceable_type) {
+            (new KnowledgeNode)->getMorphClass() => $this->sourceable_id,
+            (new KnowledgeEdge)->getMorphClass() => KnowledgeEdge::withoutGlobalScopes()->whereKey($this->sourceable_id)->value('source_node_id'),
+            default => null,
+        };
+
+        return $nodeId !== null && KnowledgeNode::withoutGlobalScopes()->whereKey($nodeId)->where('node_type', KnowledgeNode::TYPE_CONCEPT)->exists()
+            ? (int) $nodeId
+            : null;
     }
 
     /**
