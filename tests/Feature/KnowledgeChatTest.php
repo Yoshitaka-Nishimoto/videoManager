@@ -8,6 +8,7 @@ use App\Models\KnowledgeNode;
 use App\Models\User;
 use App\Models\Video;
 use App\Models\VideoAnalysis;
+use App\Models\VideoProduction;
 use App\Services\Knowledge\KnowledgeChat;
 use App\Services\Knowledge\KnowledgeChatContext;
 use App\Services\Knowledge\KnowledgeEmbedder;
@@ -201,6 +202,73 @@ class KnowledgeChatTest extends TestCase
                 ->call('ask')
                 ->assertHasErrors('minSimilarity');
         }
+    }
+
+    public function test_the_concept_status_can_be_chosen_only_for_all_genres(): void
+    {
+        $confirmed = KnowledgeNode::factory()->confirmed()->create(['node_type' => KnowledgeNode::TYPE_CONCEPT, 'title' => '確認済みの概念A']);
+        $candidate = KnowledgeNode::factory()->create(['node_type' => KnowledgeNode::TYPE_CONCEPT, 'title' => '候補の概念B']);
+
+        KnowledgeAssistant::fake([
+            ['answer' => '候補からの回答。', 'concepts' => [['id' => $candidate->id, 'reason' => '候補の理由'], ['id' => $confirmed->id, 'reason' => '確認済みの理由']]],
+            ['answer' => 'ジャンルを選んだときの回答。', 'concepts' => []],
+        ]);
+        $this->actingAs($this->owner);
+
+        // すべてのジャンル：状態を選べ、候補の概念だけが根拠とおすすめになる。
+        $chat = Livewire::test('knowledge.chat')
+            ->assertSee('概念の状態')
+            ->set('status', KnowledgeNode::STATUS_CANDIDATE)
+            ->assertSee('候補の概念と、あなたの個人のデータから答えます')
+            ->set('question', '質問')
+            ->call('ask')
+            ->assertHasNoErrors()
+            ->assertSee('候補の概念B')
+            ->assertDontSee('確認済みの概念A');
+
+        KnowledgeAssistant::assertPrompted(fn (AgentPrompt $prompt) => str_contains((string) $prompt->agent->instructions(), '候補の概念B')
+            && ! str_contains((string) $prompt->agent->instructions(), '確認済みの概念A'));
+        $this->assertSame(KnowledgeNode::STATUS_CANDIDATE, ConversationMessage::where('role', 'assistant')->sole()->meta[KnowledgeChat::STATUS_META_KEY]);
+
+        // ジャンルを選んでいるときは、状態を選べず、確認済みだけを根拠にする。
+        Livewire::test('knowledge.chat', ['genre' => array_key_first(VideoProduction::GENRES)])
+            ->set('status', KnowledgeNode::STATUS_CANDIDATE)
+            ->assertDontSee('概念の状態')
+            ->assertSee('確認済みの概念（')
+            ->set('question', '質問')
+            ->call('ask')
+            ->assertHasNoErrors();
+        $this->assertSame(KnowledgeNode::STATUS_CONFIRMED, ConversationMessage::where('role', 'assistant')->latest('created_at')->latest('id')->first()->meta[KnowledgeChat::STATUS_META_KEY]);
+
+        // 知らない状態は受け付けない。
+        $chat->set('status', 'unknown')->set('question', '質問')->call('ask')->assertHasErrors('status');
+    }
+
+    public function test_no_status_uses_concepts_of_every_status(): void
+    {
+        $confirmed = KnowledgeNode::factory()->confirmed()->create(['node_type' => KnowledgeNode::TYPE_CONCEPT, 'title' => '確認済みの概念A']);
+        $candidate = KnowledgeNode::factory()->create(['node_type' => KnowledgeNode::TYPE_CONCEPT, 'title' => '候補の概念B']);
+
+        KnowledgeAssistant::fake([
+            ['answer' => 'すべての状態からの回答。', 'concepts' => [['id' => $candidate->id, 'reason' => '候補の理由'], ['id' => $confirmed->id, 'reason' => '確認済みの理由']]],
+        ]);
+        $this->actingAs($this->owner);
+
+        $html = Livewire::test('knowledge.chat')->html();
+        // 「状態なし」が選択肢の 1 番目。
+        $this->assertLessThan(strpos($html, '>確認済み</option>'), strpos($html, '>状態なし</option>'));
+
+        Livewire::test('knowledge.chat')
+            ->set('status', KnowledgeChat::STATUS_ANY)
+            ->assertSee('すべての状態の概念と、あなたの個人のデータから答えます')
+            ->set('question', '質問')
+            ->call('ask')
+            ->assertHasNoErrors()
+            ->assertSee('候補の概念B')
+            ->assertSee('確認済みの概念A');
+
+        KnowledgeAssistant::assertPrompted(fn (AgentPrompt $prompt) => str_contains((string) $prompt->agent->instructions(), '候補の概念B')
+            && str_contains((string) $prompt->agent->instructions(), '確認済みの概念A'));
     }
 
     public function test_a_conversation_of_another_user_is_not_continued(): void

@@ -14,7 +14,7 @@ use Laravel\Ai\Promptable;
 use Stringable;
 
 /**
- * 知識一覧の「確認済み」から、利用者の質問に答える。確認済みの概念と本人の個人のデータ（KnowledgeChatContext）だけを根拠に、
+ * 知識一覧の「確認済み」から、利用者の質問に答える。根拠の概念（既定は確認済み）と本人の個人のデータ（KnowledgeChatContext）だけを根拠に、
  * 回答と、おすすめの概念（id と理由）を返す。会話は agent_conversations に本人の会話として残す（RemembersConversations）。
  *
  * 根拠の一覧は会話の履歴に入れず、指示に毎回入れる（履歴が一覧の写しで膨らまないように、また最新の確認済みを使うため）。
@@ -26,7 +26,7 @@ class KnowledgeAssistant implements Agent, Conversational, HasStructuredOutput
     use Promptable, RemembersConversations;
 
     /**
-     * @param  string  $context  確認済みの概念と本人の個人のデータ（KnowledgeChatContext::build）
+     * @param  string  $context  根拠の概念と本人の個人のデータ（KnowledgeChatContext::build）
      */
     public function __construct(private readonly string $context) {}
 
@@ -34,15 +34,17 @@ class KnowledgeAssistant implements Agent, Conversational, HasStructuredOutput
     {
         return <<<TXT
         あなたは、利用者が確認した知識（概念）を案内するアシスタントです。
-        下の「確認済みの概念」と「本人の個人のデータ」だけを根拠に、利用者の質問に日本語で答えてください。
+        下の「根拠の概念」と「本人の個人のデータ」だけを根拠に、利用者の質問に日本語で答えてください。
 
         - answer: 質問への回答。2〜6文。個人のデータに触れるときは、どの項目（値）にもとづくかを書く。
         - concepts: 質問に関係する、おすすめの概念。0〜6個。関係の強い順。
-          - id: 「確認済みの概念」の id。一覧にない id は使わないこと。
+          - id: 「根拠の概念」の id。一覧にない id は使わないこと。
           - reason: その概念をすすめる理由を1文で（個人のデータのどの項目と関係するか、など）。
 
         次のことを守ること：
         - 一覧にない知識を作らない。関係する概念がなければ、concepts を空にして、answer でそう伝える。
+        - 根拠の概念の状態が「候補」なら、まだ人が確認していない知識であること、「廃止」なら使われなくなった知識であることを、answer で一言伝える。
+          状態が「すべて」のときは、確認済みの概念を優先し、候補や廃止の概念をすすめるときは reason でそのことに触れる。
         - 診断や病名の断定をしない。「〜の可能性を医師に確認するとよい」のように、受診や相談につなげる書き方にする。
         - 薬やサプリメントの量など、医療行為にあたる具体的な指示をしない。
 

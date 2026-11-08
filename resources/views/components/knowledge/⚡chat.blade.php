@@ -1,9 +1,11 @@
 <?php
 
+use App\Models\KnowledgeNode;
 use App\Models\VideoProduction;
 use App\Services\Knowledge\KnowledgeChat;
 use App\Services\Knowledge\KnowledgeChatContext;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Reactive;
@@ -26,6 +28,9 @@ new class extends Component
     /** 根拠の概念を意味の近さで選ぶときの類似度の下限（KnowledgeChatContext::LOWEST_SIMILARITY〜1）。 */
     public float $minSimilarity = KnowledgeChatContext::MIN_SIMILARITY;
 
+    /** 根拠にする概念の状態（KnowledgeChat::STATUSES）。選べるのは「すべてのジャンル」のときだけで、ジャンルを選んでいるときは確認済み。 */
+    public string $status = KnowledgeNode::STATUS_CONFIRMED;
+
     public function mount(KnowledgeChat $chat): void
     {
         $this->conversationId = $chat->latestConversationId(auth()->user());
@@ -36,10 +41,11 @@ new class extends Component
         $this->validate([
             'question' => ['required', 'string', 'max:2000'],
             'minSimilarity' => ['required', 'numeric', 'between:'.KnowledgeChatContext::LOWEST_SIMILARITY.',1'],
-        ], attributes: ['question' => '質問', 'minSimilarity' => '類似度']);
+            'status' => ['required', Rule::in(KnowledgeChat::STATUSES)],
+        ], attributes: ['question' => '質問', 'minSimilarity' => '類似度', 'status' => '概念の状態']);
 
         try {
-            $this->conversationId = $chat->ask(auth()->user(), $this->conversationId, trim($this->question), $this->genre ?: null, $this->minSimilarity);
+            $this->conversationId = $chat->ask(auth()->user(), $this->conversationId, trim($this->question), $this->genre ?: null, $this->minSimilarity, $this->conceptStatus());
             $this->reset('question');
         } catch (Throwable $e) {
             Log::warning('知識への質問に答えられませんでした。', ['user_id' => auth()->id(), 'error' => $e->getMessage()]);
@@ -58,6 +64,14 @@ new class extends Component
     }
 
     /**
+     * 根拠にする概念の状態。ジャンルを選んでいるときは確認済み。
+     */
+    public function conceptStatus(): string
+    {
+        return KnowledgeChat::effectiveStatus($this->genre, $this->status);
+    }
+
+    /**
      * @return list<array{role: string, text: string, concepts: list<array{node: \App\Models\KnowledgeNode, reason: string}>}>
      */
     #[Computed]
@@ -72,7 +86,7 @@ new class extends Component
     <div class="flex items-center gap-3">
         <h2 class="text-sm font-semibold">知識に質問する</h2>
         <span class="text-xs text-[#706f6c] dark:text-[#A1A09A]">
-            確認済みの概念{{ $genre !== '' ? '（'.(VideoProduction::GENRES[$genre] ?? $genre).'）' : '' }}と、あなたの個人のデータから答えます
+            {{ $this->conceptStatus() === KnowledgeChat::STATUS_ANY ? 'すべての状態' : KnowledgeNode::statusLabelFor($this->conceptStatus()) }}の概念{{ $genre !== '' ? '（'.(VideoProduction::GENRES[$genre] ?? $genre).'）' : '' }}と、あなたの個人のデータから答えます
         </span>
         @if ($conversationId !== null)
             <button type="button" wire:click="newConversation" class="ml-auto whitespace-nowrap rounded-sm border border-[#19140035] px-2 py-0.5 text-xs hover:bg-[#f0f0ec] dark:border-[#3E3E3A] dark:hover:bg-[#1f1f1e]">新しい会話</button>
@@ -125,6 +139,9 @@ new class extends Component
         @error('minSimilarity')
             <p class="text-sm text-red-600">{{ $message }}</p>
         @enderror
+        @error('status')
+            <p class="text-sm text-red-600">{{ $message }}</p>
+        @enderror
         <div class="flex items-center gap-3">
             <button type="submit" wire:loading.attr="disabled" wire:target="ask" class="rounded-sm border border-[#1b1b18] bg-[#1b1b18] px-4 py-1 text-sm text-white disabled:opacity-50 dark:border-[#EDEDEC] dark:bg-[#EDEDEC] dark:text-[#1b1b18]">質問する</button>
             <label class="flex items-center gap-1 text-xs text-[#706f6c] dark:text-[#A1A09A]" title="根拠にする概念の、質問との意味の近さ（0〜1）の下限。高いほど関係の深い概念だけに絞ります">
@@ -139,6 +156,21 @@ new class extends Component
                 >
                 以上
             </label>
+            {{-- ジャンルを選んでいるときは、確認済みの概念だけを根拠にする（状態は選べない）。 --}}
+            @if ($genre === '')
+                <label class="flex items-center gap-1 text-xs text-[#706f6c] dark:text-[#A1A09A]" title="根拠にする概念の状態。状態なしは、確認済み・候補・廃止のすべてを使います。候補はまだ人が確認していない概念です">
+                    概念の状態
+                    <select
+                        wire:model.live="status"
+                        aria-label="根拠にする概念の状態"
+                        class="rounded-sm border border-[#19140035] bg-white px-1 py-0.5 text-xs text-[#1b1b18] dark:border-[#3E3E3A] dark:bg-[#161615] dark:text-[#EDEDEC]"
+                    >
+                        @foreach (KnowledgeChat::STATUSES as $value)
+                            <option value="{{ $value }}">{{ KnowledgeChat::statusLabel($value) }}</option>
+                        @endforeach
+                    </select>
+                </label>
+            @endif
             <x-ai-thinking wire:loading.inline-flex wire:target="ask" label="AI が回答を考えています…" />
         </div>
     </form>

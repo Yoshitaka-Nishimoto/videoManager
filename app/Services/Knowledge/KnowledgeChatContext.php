@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * 知識への質問（KnowledgeAssistant）に渡す根拠。本人が見られる確認済みの概念と、本人の個人のファイルの分析結果だけを入れる。
+ * 知識への質問（KnowledgeAssistant）に渡す根拠。本人が見られる概念（既定は確認済み。ジャンルを絞らないときは状態を選べる）と、本人の個人のファイルの分析結果だけを入れる。
  * 他の利用者の個人の知識は入れない（visibleTo）。利用者の名前など、本人を特定する情報も入れない。
  *
  * 概念は、質問文と本人の個人のデータに意味の近いものを pgvector で選ぶ（概念が増えても、関係するものが届くように）。
@@ -33,7 +33,7 @@ class KnowledgeChatContext
      * 意味の近さで選ぶときの類似度の下限の既定値。質問欄で利用者が変えられる（LOWEST_SIMILARITY〜1）。
      * 0.3 では無関係な概念も 0.55〜0.62 で通ってしまった（2026-10-30、確認済み 9 件で確認）ため、0.7 にする。
      */
-    public const MIN_SIMILARITY = 0.7;
+    public const MIN_SIMILARITY = 0.6;
 
     /** 利用者が設定できる類似度の下限の最小値（知識一覧の「意味で検索」と同じ）。 */
     public const LOWEST_SIMILARITY = 0.6;
@@ -47,16 +47,17 @@ class KnowledgeChatContext
      * @param  ?string  $genre  ジャンル（VideoProduction::GENRES のキー）。指定すると、概念と個人のファイルをそのジャンルに絞る
      * @param  ?string  $question  質問文。意味の近い概念を選ぶのに使う
      * @param  float  $minSimilarity  意味の近さで選ぶときの類似度の下限
+     * @param  string  $status  根拠にする概念の状態（KnowledgeNode::STATUS_*。KnowledgeChat::STATUS_ANY なら状態で絞らない）
      * @return array{text: string, similarities: array<int, float>} 根拠の文と、意味の近さで選んだ概念の類似度（id => 0〜1。埋め込みのない概念・新しい順で選んだときは入れない）
      */
-    public function build(User $user, ?string $genre = null, ?string $question = null, float $minSimilarity = self::MIN_SIMILARITY): array
+    public function build(User $user, ?string $genre = null, ?string $question = null, float $minSimilarity = self::MIN_SIMILARITY, string $status = KnowledgeNode::STATUS_CONFIRMED): array
     {
         $files = $this->personalFiles($user, $genre);
 
         $concepts = $this->concepts($user, $genre, [
             ...($question !== null && trim($question) !== '' ? [trim($question)] : []),
             ...$files->map(fn (array $file) => $this->describeFile(...$file, withData: false)),
-        ], $minSimilarity);
+        ], $minSimilarity, $status);
 
         $conceptsText = $concepts
             ->map(fn (KnowledgeNode $node) => "{$node->id}：{$node->title}".($node->description ? ' — '.Str::limit($node->description, 120) : ''))
@@ -66,7 +67,7 @@ class KnowledgeChatContext
 
         return [
             'text' => implode("\n", [
-                '## 確認済みの概念（id：名称 — 説明。質問と個人のデータに関係の深い順）',
+                '## 根拠の概念（状態：'.($status === KnowledgeChat::STATUS_ANY ? 'すべて（確認済み・候補・廃止）' : KnowledgeNode::statusLabelFor($status)).'。id：名称 — 説明。質問と個人のデータに関係の深い順）',
                 $conceptsText !== '' ? $conceptsText : '（なし）',
                 '',
                 '## 本人の個人のデータ',
@@ -80,23 +81,23 @@ class KnowledgeChatContext
     }
 
     /**
-     * 本人が見られる確認済みの概念。$queries があれば、どれかと意味の近い順に選ぶ。
+     * 本人が見られる、$status の状態の概念（既定は確認済み）。$queries があれば、どれかと意味の近い順に選ぶ。
      *
      * @param  list<string>  $queries  質問文や個人のファイルの要約
      * @return Collection<int, KnowledgeNode>
      */
-    public function concepts(User $user, ?string $genre = null, array $queries = [], float $minSimilarity = self::MIN_SIMILARITY): Collection
+    public function concepts(User $user, ?string $genre = null, array $queries = [], float $minSimilarity = self::MIN_SIMILARITY, string $status = KnowledgeNode::STATUS_CONFIRMED): Collection
     {
         if ($queries === [] || ! $this->embedder->enabled()) {
-            return $this->confirmedConcepts($user, $genre)->latest('id')->limit(self::MAX_CONCEPTS)->get();
+            return $this->conceptsIn($user, $genre, $status)->latest('id')->limit(self::MAX_CONCEPTS)->get();
         }
 
         try {
-            return $this->relevantConcepts($user, $genre, $queries, $minSimilarity);
+            return $this->relevantConcepts($user, $genre, $queries, $minSimilarity, $status);
         } catch (Throwable $e) {
             Log::warning('知識への質問の根拠を意味の近さで選べなかったため、新しい順に選びます。', ['user_id' => $user->id, 'error' => $e->getMessage()]);
 
-            return $this->confirmedConcepts($user, $genre)->latest('id')->limit(self::MAX_CONCEPTS)->get();
+            return $this->conceptsIn($user, $genre, $status)->latest('id')->limit(self::MAX_CONCEPTS)->get();
         }
     }
 
@@ -106,17 +107,17 @@ class KnowledgeChatContext
      * @param  list<string>  $queries
      * @return Collection<int, KnowledgeNode>
      */
-    private function relevantConcepts(User $user, ?string $genre, array $queries, float $minSimilarity): Collection
+    private function relevantConcepts(User $user, ?string $genre, array $queries, float $minSimilarity, string $status): Collection
     {
         $relevant = collect($queries)
-            ->flatMap(fn (string $query) => $this->confirmedConcepts($user, $genre, $this->embedder->similarTo($this->embedder->vectorFor($query), $minSimilarity))
+            ->flatMap(fn (string $query) => $this->conceptsIn($user, $genre, $status, $this->embedder->similarTo($this->embedder->vectorFor($query), $minSimilarity))
                 ->limit(self::RELEVANT_PER_QUERY)
                 ->get())
             ->sortByDesc('similarity')
             ->unique('id')
             ->take(self::MAX_RELEVANT_CONCEPTS);
 
-        $notEmbedded = $this->confirmedConcepts($user, $genre)
+        $notEmbedded = $this->conceptsIn($user, $genre, $status)
             ->whereNull('embedding')
             ->latest('id')
             ->limit(self::MAX_RELEVANT_CONCEPTS)
@@ -126,27 +127,27 @@ class KnowledgeChatContext
     }
 
     /**
-     * tinker で確かめる用：本人が見られる確認済みの概念のクエリ。
+     * tinker で確かめる用：本人が見られる、$status の状態（既定は確認済み）の概念のクエリ。
      *
      * @param  ?string  $genre  ジャンルのキー（VideoProduction::GENRES のキー。例 'ai'）
      * @param  ?Builder<KnowledgeNode>  $query  土台にするクエリ（null なら KnowledgeNode::query()）
      * @return Builder<KnowledgeNode>
      */
-    public static function userSet(User $user, ?string $genre = null, ?Builder $query = null): Builder
+    public static function userSet(User $user, ?string $genre = null, ?Builder $query = null, string $status = KnowledgeNode::STATUS_CONFIRMED): Builder
     {
-        return app(self::class)->confirmedConcepts($user, $genre, $query);
+        return app(self::class)->conceptsIn($user, $genre, $status, $query);
     }
 
     /**
      * @param  ?Builder<KnowledgeNode>  $query
      * @return Builder<KnowledgeNode>
      */
-    private function confirmedConcepts(User $user, ?string $genre, ?Builder $query = null): Builder
+    private function conceptsIn(User $user, ?string $genre, string $status, ?Builder $query = null): Builder
     {
         return ($query ?? KnowledgeNode::query())
             ->visibleTo($user->id)
             ->where('node_type', KnowledgeNode::TYPE_CONCEPT)
-            ->where('status', KnowledgeNode::STATUS_CONFIRMED)
+            ->when($status !== KnowledgeChat::STATUS_ANY, fn ($query) => $query->where('status', $status))
             ->when($genre, fn ($query) => $query->inGenre($genre));
     }
 
