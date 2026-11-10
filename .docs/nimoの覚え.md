@@ -3,7 +3,7 @@ Ubuntu > sail up -d
 Ubuntu > sail artisan dev
 ## ----------------------------------
 pg_dump
-pgsql pg_dump -U sail -d laravel -Fc > xxx.dump
+sail exec pgsql pg_dump -U sail -d laravel -Fc > xxx.dump
 . 戻す
 pgsql pg_restore -U sail -d laravel --clean --if-exists  < xxx.dump 
 
