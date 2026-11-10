@@ -29,7 +29,11 @@ new #[Title('制作')] class extends Component
 <div class="space-y-6">
     <div class="flex items-center justify-between gap-4">
         <h1 class="text-xl font-semibold">制作</h1>
-        <a href="{{ route('productions.create') }}" wire:navigate class="rounded-sm bg-[#1b1b18] px-4 py-2 text-sm text-white hover:bg-black dark:bg-[#EDEDEC] dark:text-[#1b1b18]">制作を作る</a>
+        <div class="flex items-center gap-3">
+            <a href="{{ route('mechanisms.index') }}" wire:navigate class="text-sm text-[#706f6c] hover:underline dark:text-[#A1A09A]">仕組みの一覧</a>
+            <a href="{{ route('productions.create') }}" wire:navigate class="rounded-sm bg-[#1b1b18] px-4 py-2 text-sm text-white hover:bg-black dark:bg-[#EDEDEC] dark:text-[#1b1b18]">制作を作る</a>
+            <a href="{{ route('mechanisms.create') }}" wire:navigate class="rounded-sm border border-[#1b1b18] px-4 py-2 text-sm hover:bg-[#1b1b18] hover:text-white dark:border-[#EDEDEC] dark:hover:bg-[#EDEDEC] dark:hover:text-[#1b1b18]">仕組みを作る</a>
+        </div>
     </div>
 
     @if ($this->productions->isEmpty())

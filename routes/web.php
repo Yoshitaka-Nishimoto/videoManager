@@ -21,6 +21,9 @@ Route::middleware('auth')->group(function () {
     Route::livewire('productions', 'pages::productions.index')->name('productions.index');
     Route::livewire('productions/create', 'pages::productions.create')->name('productions.create');
     Route::livewire('productions/{production}', 'pages::productions.show')->name('productions.show');
+    Route::livewire('mechanisms', 'pages::mechanisms.index')->name('mechanisms.index');
+    Route::livewire('mechanisms/create', 'pages::mechanisms.create')->name('mechanisms.create');
+    Route::livewire('mechanisms/{mechanism}', 'pages::mechanisms.show')->name('mechanisms.show');
     Route::get('production-renders/{render}/file', ProductionRenderFileController::class)->name('production-renders.file');
     Route::get('production-assets/{asset}/file', ProductionAssetFileController::class)->name('production-assets.file');
     Route::get('remotion-studio/{path?}', RemotionStudioController::class)->where('path', '.*')->name('remotion-studio');

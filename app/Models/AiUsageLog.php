@@ -41,6 +41,9 @@ class AiUsageLog extends Model
     /** 知識への質問（知識一覧の「確認済み」の質問欄）。usable はなし。 */
     public const FEATURE_CHAT = 'knowledge_chat';
 
+    /** 仕組みを作る（plotdesign.md）の各段階。usable は仕組みの周。 */
+    public const FEATURE_MECHANISM = 'mechanism';
+
     /**
      * Get the attributes that should be cast.
      *
