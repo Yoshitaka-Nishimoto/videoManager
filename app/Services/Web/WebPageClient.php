@@ -24,6 +24,9 @@ class WebPageClient
     /** AI に渡す本文の最大文字数。超えた分は切る。 */
     public const MAX_TEXT_LENGTH = 60_000;
 
+    /** 画像のファイル名の形。本文中の画像の名前を見分けるのに使う。 */
+    public const IMAGE_NAME = '/^\S(.*\S)?\.(png|jpe?g|gif|webp|avif|svg)$/iu';
+
     private const USER_AGENT = 'Mozilla/5.0 (compatible; VideoManager/1.0)';
 
     /** 本文として扱わない要素。 */
@@ -105,10 +108,55 @@ class WebPageClient
             : $this->normalizeText($body);
 
         if (mb_strlen($text) < 50) {
-            throw new WebPageException('ページから本文を読み取れませんでした。JavaScript で表示するページや、ログインが必要なページはまだ分析できません。');
+            throw new WebPageException('ページから本文を読み取れませんでした。JavaScript で表示するページや、ログインが必要なページ（AI モデルとの会話など）は、情報源の詳細の「本文を貼り付ける」から本文を入れると分析できます。');
         }
 
         return $this->limit($text, $url);
+    }
+
+    /**
+     * 利用者がページから写して貼り付けた本文を、取得した本文と同じ形（空白を詰め、最大文字数で切る）にする。取得元の URL は空。
+     */
+    public function pasted(string $text): WebPageContent
+    {
+        return $this->limit($this->normalizeText($text), null);
+    }
+
+    /**
+     * ページから写した本文には、画像が「xxxxx.png」のようなファイル名（画像の alt）だけで残る。
+     * 元のページの画像のうち、名前（alt か、URL のファイル名）が本文に出てくるものについて、名前 → 画像の URL の対応を返す。
+     * 名前は画像のファイル名の形（.png など）のものだけを使う（「楽天証券」のような alt で、ふつうの行を画像にしないため）。
+     *
+     * @return array<string, string>
+     *
+     * @throws WebPageException
+     */
+    public function images(string $url, string $text): array
+    {
+        $response = $this->get($url);
+        $this->ensureHtml($response);
+        $xpath = new DOMXPath($this->document($this->utf8Body($response)));
+        $images = [];
+
+        foreach ($xpath->query('//img') as $img) {
+            /** @var DOMElement $img */
+            $src = trim($img->getAttribute('src') ?: $img->getAttribute('data-src'));
+
+            if ($src === '' || str_starts_with($src, 'data:')) {
+                continue;
+            }
+
+            $src = $this->absoluteUrl($src, $url);
+            $names = [trim($img->getAttribute('alt')), rawurldecode(basename((string) parse_url($src, PHP_URL_PATH)))];
+
+            foreach ($names as $name) {
+                if (preg_match(self::IMAGE_NAME, $name) && str_contains($text, $name) && preg_match('#^https?://#i', $src)) {
+                    $images[$name] ??= $src;
+                }
+            }
+        }
+
+        return $images;
     }
 
     /**
@@ -158,7 +206,7 @@ class WebPageClient
 
         return match (true) {
             $response->successful() => $response,
-            in_array($response->status(), [401, 403], true) => throw new WebPageException('ページを開けませんでした（'.$response->status().'）。ログインが必要なページはまだ登録・分析できません。'),
+            in_array($response->status(), [401, 403], true) => throw new WebPageException('ページを開けませんでした（'.$response->status().'）。ログインが必要なページは、情報源の詳細で本文を貼り付けると分析できます。', loginRequired: true),
             $response->status() === 404 => throw new WebPageException('ページが見つかりません（404）。URL を確認してください。'),
             default => throw new WebPageException('ページを取得できませんでした（'.$response->status().'）。'),
         };
@@ -276,7 +324,7 @@ class WebPageClient
         return trim(preg_replace(["/\n{3,}/", "/\n\n(?=- )/"], ["\n\n", "\n"], $lines->implode("\n")));
     }
 
-    private function limit(string $text, string $sourceUrl): WebPageContent
+    private function limit(string $text, ?string $sourceUrl): WebPageContent
     {
         $truncated = mb_strlen($text) > self::MAX_TEXT_LENGTH;
 
@@ -301,7 +349,23 @@ class WebPageClient
 
         $origin = $scheme.'://'.parse_url($base, PHP_URL_HOST).(parse_url($base, PHP_URL_PORT) ? ':'.parse_url($base, PHP_URL_PORT) : '');
 
-        return str_starts_with($url, '/') ? $origin.$url : $origin.'/'.$url;
+        if (str_starts_with($url, '/')) {
+            return $origin.$url;
+        }
+
+        // 相対パス（image/a.png、../a.png）は、元のページのディレクトリから解決する。
+        $directory = Str::beforeLast((string) parse_url($base, PHP_URL_PATH), '/');
+        $segments = [];
+
+        foreach (explode('/', $directory.'/'.$url) as $segment) {
+            match ($segment) {
+                '', '.' => null,
+                '..' => array_pop($segments),
+                default => $segments[] = $segment,
+            };
+        }
+
+        return $origin.'/'.implode('/', $segments);
     }
 
     private function parseDate(string $value): ?CarbonImmutable

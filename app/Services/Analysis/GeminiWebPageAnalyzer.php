@@ -14,6 +14,7 @@ use Laravel\Ai\Responses\AgentResponse;
 /**
  * Web ページの本文をこちらで取得して Gemini に渡し、内容を分析する。
  *
+ * ログインが必要なページ（AI モデルとの会話など）は取得できないので、利用者が貼り付けた本文（videos.pasted_text）があればそれを使う。
  * 取得した本文は AnalysisResult::$source で返し、分析の版ごとに保存する（何を読んで分析したかを確かめられるように）。
  * モデルの切り替えと AI 使用量の記録は GeminiVideoAnalyzer と同じ。
  * 本文は文章なので、Gemini 以外の AI（OpenAI など。services.video_analyzer.text_provider）でも分析できる。
@@ -40,7 +41,10 @@ class GeminiWebPageAnalyzer implements VideoAnalyzer
             throw new InvalidArgumentException('Web ページの分析で扱えるのは、Web ページの情報源だけです。');
         }
 
-        $content = $this->web->content($video->url);
+        // ログインが必要なページ（AI モデルとの会話など）は、利用者が貼り付けた本文を使う。
+        $content = $video->hasPastedText()
+            ? $this->web->pasted($video->pasted_text)
+            : $this->web->content($video->url);
         $reportProgress(15);
 
         $header = $this->promptHeader($video, $content);
@@ -73,7 +77,11 @@ class GeminiWebPageAnalyzer implements VideoAnalyzer
             "ページの題名：{$video->title}",
             'サイト：'.($video->channel_title ?? '不明'),
             "URL：{$video->url}",
-            ...($content->sourceUrl !== $video->url ? ["本文の取得元：{$content->sourceUrl}"] : []),
+            ...match (true) {
+                $content->sourceUrl === null => ['本文の取得元：利用者がページから写して貼り付けた文章（ログインが必要なページ。AI モデルとの会話のこともある）'],
+                $content->sourceUrl !== $video->url => ["本文の取得元：{$content->sourceUrl}"],
+                default => [],
+            },
             ...($content->truncated ? ['注意：本文が長いため、先頭の '.number_format(WebPageClient::MAX_TEXT_LENGTH).' 文字だけを渡しています。'] : []),
             $this->existingConceptsLine($video),
             '',

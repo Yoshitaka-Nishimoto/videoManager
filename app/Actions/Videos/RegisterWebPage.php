@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Video;
 use App\Services\Knowledge\KnowledgeCandidateWriter;
 use App\Services\Web\WebPageClient;
+use App\Services\Web\WebPageDetails;
 use App\Services\Web\WebPageException;
 use Illuminate\Support\Facades\DB;
 
@@ -45,7 +46,17 @@ class RegisterWebPage
             return ['video' => $existing, 'created' => false];
         }
 
-        $details = $this->web->details($url);
+        try {
+            $details = $this->web->details($url);
+        } catch (WebPageException $e) {
+            if (! $e->loginRequired) {
+                throw $e;
+            }
+
+            // ログインが必要なページ（AI モデルとの会話など）も登録しておき、詳細で本文を貼り付けて分析する。題名は後で直せる。
+            $host = (string) parse_url($url, PHP_URL_HOST);
+            $details = new WebPageDetails(url: $url, title: $host, siteName: $host, description: null, imageUrl: null, publishedAt: null);
+        }
 
         $video = DB::transaction(function () use ($details, $user) {
             $video = Video::query()->create([

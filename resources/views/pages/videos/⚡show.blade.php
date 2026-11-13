@@ -3,6 +3,7 @@
 use App\Actions\Videos\AnalysisAlreadyRunningException;
 use App\Actions\Videos\RefreshVideoStatistics;
 use App\Actions\Videos\RequestVideoAnalysis;
+use App\Actions\Videos\SavePastedText;
 use App\Models\KnowledgeEdge;
 use App\Models\KnowledgeNode;
 use App\Models\Video;
@@ -21,9 +22,48 @@ new #[Title('情報源の詳細')] class extends Component
 
     public string $genre = '';
 
+    /** Web ページの題名（取得できないページは「ChatGPT」などになるので直せる）。 */
+    public string $title = '';
+
+    /**
+     * 新しく貼り付ける本文。保存したら空に戻す（長い本文を、画面の操作のたびに送り合わないように）。
+     * 保存済みの本文は $video->pasted_text で表示する。
+     */
+    public string $pastedText = '';
+
+    /** 貼り付けられる本文の最大文字数。AI に渡すのは先頭の WebPageClient::MAX_TEXT_LENGTH 文字まで。 */
+    public const PASTED_TEXT_MAX = 300_000;
+
     public function mount(): void
     {
         $this->genre = (string) $this->video->genre;
+        $this->title = (string) $this->video->title;
+    }
+
+    /**
+     * 題名と、貼り付けた本文を保存する。本文が空なら、保存済みの本文はそのまま残す。
+     */
+    public function savePastedText(SavePastedText $save): void
+    {
+        $this->validate([
+            'title' => ['required', 'string', 'max:250'],
+            'pastedText' => ['nullable', 'string', 'min:50', 'max:'.self::PASTED_TEXT_MAX],
+        ], attributes: ['title' => '題名', 'pastedText' => '本文']);
+
+        $save->handle($this->video, trim($this->title), filled($this->pastedText) ? $this->pastedText : $this->video->pasted_text, auth()->user());
+
+        $this->pastedText = '';
+        session()->now('status', $this->video->hasPastedText() ? '保存しました。「分析する」を押すと、貼り付けた本文で分析します。' : '保存しました。');
+    }
+
+    /**
+     * 貼り付けた本文を消し、URL から本文を取得する方法に戻す。
+     */
+    public function clearPastedText(SavePastedText $save): void
+    {
+        $save->handle($this->video, $this->video->title, null, auth()->user());
+
+        session()->now('status', '貼り付けた本文を消しました。次の分析からは URL から本文を取得します。');
     }
 
     /**
@@ -194,6 +234,62 @@ new #[Title('情報源の詳細')] class extends Component
         </div>
     </section>
 
+    @if ($video->isWebPage())
+        <section class="space-y-3">
+            <h2 class="text-lg font-semibold">本文を貼り付ける</h2>
+            <p class="text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                ログインが必要なページ（ChatGPT・Claude・Gemini などの AI モデルとの会話）や、JavaScript で本文を表示するページは、URL から本文を取得できません。
+                ページを開いて本文を選択・コピーし（会話なら全体を選択するか、各サービスの「コピー」「書き出し」を使う）、ここに貼り付けると、その本文で分析します。
+            </p>
+
+            @if ($video->hasPastedText())
+                <div class="rounded-sm border border-[#19140035] p-3 text-sm dark:border-[#3E3E3A]">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <p>
+                            貼り付けた本文：{{ number_format(mb_strlen($video->pasted_text)) }} 文字（{{ $video->pasted_text_updated_at?->format('Y-m-d H:i') }}）。分析では URL から取得せず、この本文を使います。
+                        </p>
+                        <button
+                            type="button"
+                            wire:click="clearPastedText"
+                            wire:confirm="貼り付けた本文を消しますか？これまでの分析の版に残した本文は消えません。"
+                            class="rounded-sm border border-[#19140035] px-2 py-0.5 text-xs hover:border-[#1915014a] dark:border-[#3E3E3A] dark:hover:border-[#62605b]"
+                        >
+                            本文を消す
+                        </button>
+                    </div>
+                    @if (! empty($video->pasted_images))
+                        <p class="mt-1 text-xs text-[#706f6c] dark:text-[#A1A09A]">本文中の画像 {{ count($video->pasted_images) }} 枚を、元のページから表示します（「保存する」を押すと取り直します）。</p>
+                    @endif
+                    @if (mb_strlen($video->pasted_text) > \App\Services\Web\WebPageClient::MAX_TEXT_LENGTH)
+                        <p class="mt-1 text-xs text-amber-700 dark:text-amber-400">長いため、AI には先頭の {{ number_format(\App\Services\Web\WebPageClient::MAX_TEXT_LENGTH) }} 文字だけを渡します。</p>
+                    @endif
+                    <details class="mt-2">
+                        <summary class="cursor-pointer text-xs text-[#706f6c] dark:text-[#A1A09A]">貼り付けた本文を表示</summary>
+                        <x-source-text :text="$video->pasted_text" :images="$video->pasted_images ?? []" class="mt-1" />
+                    </details>
+                </div>
+            @endif
+
+            <form wire:submit="savePastedText" class="space-y-2">
+                <label class="block text-sm">
+                    <span class="text-[#706f6c] dark:text-[#A1A09A]">題名</span>
+                    <input type="text" wire:model="title" maxlength="250" class="mt-1 w-full rounded-sm border border-[#19140035] bg-white px-3 py-1.5 dark:border-[#3E3E3A] dark:bg-[#161615]">
+                </label>
+                @error('title') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+
+                <label class="block text-sm">
+                    <span class="text-[#706f6c] dark:text-[#A1A09A]">{{ $video->hasPastedText() ? '本文を貼り直す（空のままなら今の本文を使う）' : '本文' }}</span>
+                    <textarea wire:model="pastedText" rows="8" placeholder="ページの本文や AI との会話を貼り付けてください（50 文字以上）" class="mt-1 w-full rounded-sm border border-[#19140035] bg-white px-3 py-1.5 font-mono text-xs dark:border-[#3E3E3A] dark:bg-[#161615]"></textarea>
+                </label>
+                @error('pastedText') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+
+                <button type="submit" wire:loading.attr="disabled" wire:target="savePastedText" class="rounded-sm border border-[#19140035] px-4 py-1.5 text-sm hover:border-[#1915014a] disabled:opacity-50 dark:border-[#3E3E3A] dark:hover:border-[#62605b]">
+                    保存する
+                </button>
+            </form>
+        </section>
+    @endif
+
     <section class="space-y-3">
         <div class="flex items-center justify-between gap-4">
             <h2 class="text-lg font-semibold">分析</h2>
@@ -321,13 +417,15 @@ new #[Title('情報源の詳細')] class extends Component
                         {{ $this->latestCompleted->source_fetched_at?->format('Y-m-d H:i') }} に
                         <a href="{{ $this->latestCompleted->source_url }}" target="_blank" rel="noopener" class="break-all text-blue-700 hover:underline dark:text-blue-400">{{ $this->latestCompleted->source_url }}</a>
                         から取得（{{ number_format(mb_strlen($this->latestCompleted->source_text)) }} 文字）
+                    @elseif ($video->isWebPage())
+                        {{ $this->latestCompleted->source_fetched_at?->format('Y-m-d H:i') }} の分析で、貼り付けた本文を使用（{{ number_format(mb_strlen($this->latestCompleted->source_text)) }} 文字）
                     @else
                         {{ $this->latestCompleted->source_fetched_at?->format('Y-m-d H:i') }} にファイルから読み取り（値のない行は除いています）
                     @endif
                 </p>
                 <details class="rounded-sm border border-[#19140035] dark:border-[#3E3E3A]">
                     <summary class="cursor-pointer px-3 py-2 text-sm">{{ $video->isFile() ? 'データを表示' : '本文を表示' }}</summary>
-                    <pre class="max-h-96 overflow-auto whitespace-pre-wrap break-words border-t border-[#19140035] px-3 py-2 text-xs dark:border-[#3E3E3A]">{{ $this->latestCompleted->source_text }}</pre>
+                    <x-source-text :text="$this->latestCompleted->source_text" :images="$video->isWebPage() ? ($video->pasted_images ?? []) : []" class="border-t border-[#19140035] px-3 py-2 dark:border-[#3E3E3A]" />
                 </details>
             </section>
         @endif

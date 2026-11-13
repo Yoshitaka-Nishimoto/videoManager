@@ -8,6 +8,7 @@ use App\Models\KnowledgeNode;
 use App\Models\KnowledgeSource;
 use App\Models\User;
 use App\Models\Video;
+use App\Models\VideoAnalysis;
 use App\Services\Analysis\GeminiWebPageAnalyzer;
 use App\Services\Web\WebPageClient;
 use App\Services\Web\WebPageException;
@@ -44,6 +45,14 @@ class WebPageSourceTest extends TestCase
         </body></html>
         HTML;
 
+    private const CONVERSATION = <<<'TXT'
+        あなた:
+        Remotion で動画に字幕を付けるにはどうすればいいですか？
+
+        ChatGPT:
+        @remotion/captions の parseSrt で SRT を読み込み、現在のフレームに合う字幕だけを表示します。
+        TXT;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -78,17 +87,145 @@ class WebPageSourceTest extends TestCase
         Http::assertSentCount(1);
     }
 
-    public function test_pages_that_need_a_login_and_pdfs_are_rejected(): void
+    public function test_pdfs_and_missing_pages_are_rejected(): void
     {
         Http::fake([
-            'example.com/private' => Http::response('', 403),
+            'example.com/missing' => Http::response('', 404),
             'example.com/paper.pdf' => Http::response('%PDF', 200, ['Content-Type' => 'application/pdf']),
         ]);
 
-        Livewire::test('pages::videos.index')->set('url', 'https://example.com/private')->call('register')->assertHasErrors('url')->assertSee('ログインが必要');
+        Livewire::test('pages::videos.index')->set('url', 'https://example.com/missing')->call('register')->assertHasErrors('url')->assertSee('404');
         Livewire::test('pages::videos.index')->set('url', 'https://example.com/paper.pdf')->call('register')->assertHasErrors('url')->assertSee('PDF');
 
         $this->assertSame(0, Video::count());
+    }
+
+    public function test_a_page_that_needs_a_login_is_registered_with_its_host_so_its_text_can_be_pasted(): void
+    {
+        Http::fake(['claude.ai/*' => Http::response('', 403)]);
+
+        Livewire::test('pages::videos.index')
+            ->set('url', 'https://claude.ai/chat/abc')
+            ->call('register')
+            ->assertHasNoErrors();
+
+        $video = Video::sole();
+        $this->assertSame('claude.ai', $video->title);
+        $this->assertSame('claude.ai', $video->channel_title);
+        $this->assertTrue(KnowledgeNode::where('video_id', $video->id)->exists());
+
+        Livewire::test('pages::videos.show', ['video' => $video])->assertSee('本文を貼り付ける');
+    }
+
+    public function test_pasted_text_and_a_corrected_title_are_saved_and_the_source_node_follows_the_title(): void
+    {
+        Http::fake(['chatgpt.com/*' => Http::response('<html><head><title>ChatGPT</title></head><body></body></html>', 200, ['Content-Type' => 'text/html'])]);
+        Livewire::test('pages::videos.index')->set('url', 'https://chatgpt.com/c/abc')->call('register');
+        $video = Video::sole();
+        $this->assertSame('ChatGPT', $video->title);
+
+        Livewire::test('pages::videos.show', ['video' => $video])
+            ->set('title', 'Remotion の字幕の付け方（ChatGPT）')
+            ->set('pastedText', '短い')
+            ->call('savePastedText')
+            ->assertHasErrors('pastedText')
+            ->set('pastedText', self::CONVERSATION)
+            ->call('savePastedText')
+            ->assertHasNoErrors()
+            ->assertSet('pastedText', '')
+            ->assertSee('貼り付けた本文で分析します');
+
+        $video->refresh();
+        $this->assertTrue($video->hasPastedText());
+        $this->assertNotNull($video->pasted_text_updated_at);
+        $this->assertSame('Remotion の字幕の付け方（ChatGPT）', $video->title);
+        $node = KnowledgeNode::where('video_id', $video->id)->sole();
+        $this->assertSame('Remotion の字幕の付け方（ChatGPT）', $node->title);
+        $this->assertSame('情報源の題名を修正', $node->revisions()->latest('id')->first()->reason);
+
+        // 本文を空のまま保存しても、保存済みの本文は消えない。
+        Livewire::test('pages::videos.show', ['video' => $video])->call('savePastedText')->assertHasNoErrors();
+        $this->assertTrue($video->refresh()->hasPastedText());
+
+        Livewire::test('pages::videos.show', ['video' => $video])->call('clearPastedText');
+        $this->assertFalse($video->refresh()->hasPastedText());
+        $this->assertNull($video->pasted_text_updated_at);
+    }
+
+    public function test_image_names_in_pasted_text_are_shown_as_the_images_of_the_original_page(): void
+    {
+        Http::fake(['example.com/help/order/detail.html' => Http::response(<<<'HTML'
+            <html><body>
+                <img src="/help/images/logo.svg" alt="楽天証券">
+                <img alt="詳細を見る①.png" src="https://example.com/help/d32d.png">
+                <img alt="" src="image/%E8%A9%B3%E7%B4%B0%E2%91%A1.png">
+                <img alt="本文にない画像.png" src="/help/other.png">
+            </body></html>
+            HTML, 200, ['Content-Type' => 'text/html'])]);
+        $video = Video::factory()->webPage('https://example.com/help/order/detail.html')->create();
+        $text = "ファンドの詳細情報を確認するには、詳細画面を開きます。\n\n詳細を見る①.png\nタブを切り替えると各カテゴリの情報を確認できます。\n詳細②.png\n楽天証券";
+
+        Livewire::test('pages::videos.show', ['video' => $video])
+            ->set('pastedText', $text)
+            ->call('savePastedText')
+            ->assertHasNoErrors()
+            ->assertSee('本文中の画像 2 枚')
+            ->assertSee('<img src="https://example.com/help/d32d.png" alt="詳細を見る①.png"', escape: false)
+            ->assertSee('<img src="https://example.com/help/order/image/%E8%A9%B3%E7%B4%B0%E2%91%A1.png" alt="詳細②.png"', escape: false)
+            ->assertDontSee('logo.svg')
+            ->assertSee('タブを切り替えると');
+
+        $this->assertSame([
+            '詳細を見る①.png' => 'https://example.com/help/d32d.png',
+            '詳細②.png' => 'https://example.com/help/order/image/%E8%A9%B3%E7%B4%B0%E2%91%A1.png',
+        ], $video->refresh()->pasted_images);
+    }
+
+    public function test_pasted_text_is_saved_without_images_when_the_page_cannot_be_opened(): void
+    {
+        Http::fake(['chatgpt.com/*' => Http::response('', 403)]);
+        $video = Video::factory()->webPage('https://chatgpt.com/c/abc')->create();
+
+        Livewire::test('pages::videos.show', ['video' => $video])
+            ->set('pastedText', self::CONVERSATION."\nscreenshot.png")
+            ->call('savePastedText')
+            ->assertHasNoErrors();
+
+        $video->refresh();
+        $this->assertTrue($video->hasPastedText());
+        $this->assertNull($video->pasted_images);
+    }
+
+    public function test_the_analysis_uses_the_pasted_text_without_fetching_the_page(): void
+    {
+        config(['services.video_analyzer.driver' => 'gemini']);
+        Http::fake();
+        $video = Video::factory()->webPage('https://chatgpt.com/c/abc')->create([
+            'title' => 'Remotion の字幕',
+            'pasted_text' => self::CONVERSATION,
+            'pasted_text_updated_at' => now(),
+        ]);
+        WebPageAnalyst::fake([[
+            'summary' => '利用者が字幕の付け方を尋ね、AI は SRT を読み込む方法を説明している。',
+            'topics' => ['字幕'],
+            'key_points' => [['point' => 'SRT を読み込んで表示する', 'quote' => '@remotion/captions の parseSrt で SRT を読み込み']],
+            'concepts' => [['title' => '字幕ファイルの読み込み', 'description' => 'SRT を読み込んで表示する。', 'confidence' => 0.6, 'key_point' => 0]],
+        ]]);
+
+        Queue::fake();
+        Livewire::test('pages::videos.show', ['video' => $video])->call('analyze');
+        Queue::pushed(AnalyzeVideo::class)->each(fn (AnalyzeVideo $job) => app()->call([$job, 'handle']));
+
+        Http::assertNothingSent();
+        WebPageAnalyst::assertPrompted(fn (AgentPrompt $prompt) => $prompt->contains('貼り付けた文章') && $prompt->contains('parseSrt'));
+
+        $analysis = $video->analyses()->sole();
+        $this->assertSame(VideoAnalysis::STATUS_COMPLETED, $analysis->status);
+        $this->assertNull($analysis->source_url);
+        $this->assertStringContainsString('parseSrt', $analysis->source_text);
+        $this->assertSame('@remotion/captions の parseSrt で SRT を読み込み', $analysis->content['key_points'][0]['quote']);
+
+        Livewire::test('pages::videos.show', ['video' => $video])->assertSee('貼り付けた本文を使用');
     }
 
     public function test_the_main_text_keeps_headings_and_drops_navigation_and_scripts(): void

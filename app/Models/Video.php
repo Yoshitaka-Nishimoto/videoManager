@@ -21,6 +21,9 @@ use Illuminate\Support\Str;
     'title',
     'channel_title',
     'description',
+    'pasted_text',
+    'pasted_text_updated_at',
+    'pasted_images',
     'genre',
     'summary',
     'duration_seconds',
@@ -64,6 +67,8 @@ class Video extends Model
             'like_count' => 'integer',
             'comment_count' => 'integer',
             'statistics_fetched_at' => 'datetime',
+            'pasted_text_updated_at' => 'datetime',
+            'pasted_images' => 'array',
         ];
     }
 
@@ -112,6 +117,14 @@ class Video extends Model
     public function isWebPage(): bool
     {
         return $this->source_type === self::SOURCE_WEB;
+    }
+
+    /**
+     * 利用者が本文を貼り付けた Web ページか（分析では URL から取得せずに、貼り付けた本文を使う）。
+     */
+    public function hasPastedText(): bool
+    {
+        return $this->isWebPage() && filled($this->pasted_text);
     }
 
     public function isFile(): bool
