@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Videos\AnalysisAlreadyRunningException;
+use App\Actions\Videos\CreateVideoCover;
 use App\Actions\Videos\RefreshVideoStatistics;
 use App\Actions\Videos\RequestVideoAnalysis;
 use App\Actions\Videos\SavePastedText;
@@ -34,10 +35,41 @@ new #[Title('情報源の詳細')] class extends Component
     /** 貼り付けられる本文の最大文字数。AI に渡すのは先頭の WebPageClient::MAX_TEXT_LENGTH 文字まで。 */
     public const PASTED_TEXT_MAX = 300_000;
 
-    public function mount(): void
+    /** 表紙（静止画）の見出しと副題。前に作った表紙があればその内容、なければ題名とサイト名・チャンネル名。 */
+    public string $coverHeading = '';
+
+    public string $coverSubheading = '';
+
+    public function mount(CreateVideoCover $cover): void
     {
         $this->genre = (string) $this->video->genre;
         $this->title = (string) $this->video->title;
+
+        $content = $cover->defaultContent($this->video);
+        $this->coverHeading = $content['heading'];
+        $this->coverSubheading = (string) $content['subheading'];
+    }
+
+    /**
+     * 表紙（静止画）を Windows の静止画のサーバーで作る。数秒かかるので、終わるまで待つ。
+     */
+    public function createCover(CreateVideoCover $cover): void
+    {
+        $this->validate([
+            'coverHeading' => ['required', 'string', 'max:100'],
+            'coverSubheading' => ['nullable', 'string', 'max:80'],
+        ], attributes: ['coverHeading' => '見出し', 'coverSubheading' => '副題']);
+
+        try {
+            $cover->handle($this->video, $this->coverHeading, $this->coverSubheading);
+        } catch (\RuntimeException $e) {
+            report($e);
+            $this->addError('cover', $e->getMessage());
+
+            return;
+        }
+
+        session()->now('status', '表紙を作りました。');
     }
 
     /**
@@ -231,6 +263,52 @@ new #[Title('情報源の詳細')] class extends Component
                     </dd>
                 @endif
             </dl>
+        </div>
+    </section>
+
+    <section class="space-y-3">
+        <h2 class="text-lg font-semibold">表紙（静止画）</h2>
+        <p class="text-sm text-[#706f6c] dark:text-[#A1A09A]">
+            見出し・副題と、種類・ジャンル・最新の分析の話題から、1920×1080 の表紙の画像を Windows で作ります（動画の場面と同じ Remotion の部品で描きます）。
+        </p>
+
+        <div class="grid gap-6 md:grid-cols-[1fr_480px]">
+            <form wire:submit="createCover" class="space-y-2">
+                <label class="block text-sm">
+                    <span class="text-[#706f6c] dark:text-[#A1A09A]">見出し</span>
+                    <input type="text" wire:model="coverHeading" maxlength="100" class="mt-1 w-full rounded-sm border border-[#19140035] bg-white px-3 py-1.5 dark:border-[#3E3E3A] dark:bg-[#161615]">
+                </label>
+                @error('coverHeading') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+
+                <label class="block text-sm">
+                    <span class="text-[#706f6c] dark:text-[#A1A09A]">副題（空なら出さない）</span>
+                    <input type="text" wire:model="coverSubheading" maxlength="80" class="mt-1 w-full rounded-sm border border-[#19140035] bg-white px-3 py-1.5 dark:border-[#3E3E3A] dark:bg-[#161615]">
+                </label>
+                @error('coverSubheading') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+
+                <button
+                    type="submit"
+                    wire:loading.attr="disabled"
+                    wire:target="createCover"
+                    class="rounded-sm bg-[#1b1b18] px-5 py-2 text-sm text-white hover:bg-black disabled:opacity-50 dark:bg-[#EDEDEC] dark:text-[#1b1b18]"
+                >
+                    <span wire:loading.remove wire:target="createCover">{{ $video->hasCover() ? '表紙（静止画）を作り直す' : '表紙（静止画）を作成' }}</span>
+                    <span wire:loading wire:target="createCover">作成中…（Windows で描いています）</span>
+                </button>
+                @error('cover') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+            </form>
+
+            @if ($video->hasCover())
+                <div class="space-y-1">
+                    <a href="{{ $video->coverUrl() }}" target="_blank" rel="noopener">
+                        <img src="{{ $video->coverUrl() }}" alt="表紙" class="aspect-video w-full rounded-sm border border-[#19140035] object-cover dark:border-[#3E3E3A]">
+                    </a>
+                    <p class="flex flex-wrap items-center gap-x-3 text-xs text-[#706f6c] dark:text-[#A1A09A]">
+                        <span>{{ $video->cover_created_at?->format('Y-m-d H:i') }} に作成</span>
+                        <a href="{{ $video->coverUrl(download: true) }}" class="text-blue-700 hover:underline dark:text-blue-400">ダウンロード</a>
+                    </p>
+                </div>
+            @endif
         </div>
     </section>
 

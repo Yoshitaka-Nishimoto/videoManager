@@ -4,10 +4,9 @@ namespace App\Jobs;
 
 use App\Actions\Productions\CancelProductionRender;
 use App\Models\ProductionRender;
+use App\Services\Remotion\WindowsStillClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
@@ -243,7 +242,6 @@ class RenderProduction implements ShouldQueue
     private function renderStillOnWindows(string $storagePath): void
     {
         $render = $this->render;
-        $server = config('remotion.still_server');
 
         $render->update([
             'status' => ProductionRender::STATUS_RUNNING,
@@ -252,45 +250,30 @@ class RenderProduction implements ShouldQueue
             'started_at' => now(),
         ]);
 
-        try {
-            $response = Http::timeout((int) $server['timeout'])
-                ->when($server['token'], fn ($request, string $token) => $request->withToken($token))
-                ->post(rtrim($server['url'], '/').'/still', [
-                    'inputProps' => $render->input_props,
-                    'imageFormat' => $render->image_format ?? 'png',
-                    'scale' => (float) $render->scale,
-                    'frame' => $render->frame,
-                ]);
-        } catch (ConnectionException $e) {
-            throw new RuntimeException('Windows の静止画のサーバーにつながりません。Windows の PowerShell で remotion フォルダから node scripts\still-server-windows.mjs を起動してください。', previous: $e);
-        }
-
-        if ($response->failed()) {
-            throw new RuntimeException('Windows の静止画のサーバーで失敗しました：'.($response->json('error') ?? "HTTP {$response->status()}"));
-        }
+        $still = app(WindowsStillClient::class)->render($render->input_props, $render->image_format ?? 'png', (float) $render->scale, $render->frame);
 
         // 待っている間に取り消されていたら、画像は保存しない。
         if ($this->wasCancelled()) {
             return;
         }
 
-        Storage::disk(config('remotion.disk'))->put($storagePath, $response->body());
+        Storage::disk(config('remotion.disk'))->put($storagePath, $still->image);
 
         $this->done = [
-            'sizeBytes' => strlen($response->body()),
-            'renderMs' => (int) $response->header('X-Render-Ms'),
-            'width' => (int) $response->header('X-Width'),
-            'height' => (int) $response->header('X-Height'),
+            'sizeBytes' => $still->sizeBytes(),
+            'renderMs' => $still->renderMs,
+            'width' => $still->width,
+            'height' => $still->height,
             'fps' => $render->fps,
             'durationInFrames' => $render->duration_in_frames,
-            'frame' => $response->hasHeader('X-Frame') ? (int) $response->header('X-Frame') : $render->frame,
-            'remotionVersion' => $response->header('X-Remotion-Version') ?: null,
+            'frame' => $still->frame,
+            'remotionVersion' => $still->remotionVersion,
         ];
         $this->complete($storagePath);
 
         // Windows でまとめた remotion/src の版（Git のコミットではなくコードのハッシュ）を残す。
-        if ($codeVersion = $response->header('X-Code-Version')) {
-            $render->update(['code_version' => mb_substr($codeVersion, 0, 64)]);
+        if ($still->codeVersion !== null) {
+            $render->update(['code_version' => mb_substr($still->codeVersion, 0, 64)]);
         }
     }
 

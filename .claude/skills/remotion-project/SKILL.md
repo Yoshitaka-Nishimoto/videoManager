@@ -91,6 +91,8 @@ Claude は Studio をバックグラウンドで起動しない（人がター�
 | `app/Services/Remotion/RemotionInput.php` | 制作案と場面から入力（input props）を作る |
 | `resources/views/pages/productions/` | 制作の一覧と詳細（静止画・動画の書き出しボタン、履歴、再生） |
 | `ProductionRenderFileController` | 書き出したファイルを返す（`production-renders/{render}/file`） |
+| `app/Services/Remotion/WindowsStillClient.php` | Windows の静止画のサーバー（`scripts/still-server-windows.mjs`）への依頼。制作の静止画と情報源の表紙が共用 |
+| `app/Actions/Videos/CreateVideoCover.php` | 情報源の表紙（`remotion.cover`、`public_docs/video_covers.md`）。情報源の詳細の画面から作る |
 
 ## 書き出しの記録との対応
 

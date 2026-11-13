@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CodeChangeController;
 use App\Http\Controllers\ProductionAssetFileController;
 use App\Http\Controllers\ProductionRenderFileController;
 use App\Http\Controllers\RemotionStudioController;
+use App\Http\Controllers\VideoCoverController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -15,6 +16,7 @@ Route::view('dashboard', 'dashboard')->middleware('auth')->name('dashboard');
 Route::middleware('auth')->group(function () {
     Route::livewire('videos', 'pages::videos.index')->name('videos.index');
     Route::livewire('videos/{video}', 'pages::videos.show')->name('videos.show');
+    Route::get('videos/{video}/cover', VideoCoverController::class)->name('videos.cover');
     Route::livewire('knowledge', 'pages::knowledge.index')->name('knowledge.index');
     Route::livewire('knowledge/{node}', 'pages::knowledge.show')->name('knowledge.show');
     Route::livewire('ai-usage', 'pages::ai-usage.index')->name('ai-usage.index');

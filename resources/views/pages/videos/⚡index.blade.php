@@ -209,7 +209,10 @@ new #[Title('情報源一覧')] class extends Component
                 @foreach ($this->videos as $video)
                     <li wire:key="video-{{ $video->id }}" class="overflow-hidden rounded-sm border border-[#19140035] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:hover:border-[#62605b]">
                         <a href="{{ route('videos.show', $video) }}" wire:navigate class="block">
-                            @if ($video->thumbnail_url)
+                            {{-- 作成した表紙（静止画）があればそれを、なければ元のサムネイルを出す。 --}}
+                            @if ($video->hasCover())
+                                <img src="{{ $video->coverUrl() }}" alt="" class="aspect-video w-full object-cover" loading="lazy">
+                            @elseif ($video->thumbnail_url)
                                 <img src="{{ $video->thumbnail_url }}" alt="" class="aspect-video w-full object-cover" loading="lazy">
                             @else
                                 <div class="aspect-video w-full bg-[#f0f0ec] dark:bg-[#1f1f1e]"></div>

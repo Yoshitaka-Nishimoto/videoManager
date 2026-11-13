@@ -29,6 +29,9 @@ use Illuminate\Support\Str;
     'duration_seconds',
     'published_at',
     'thumbnail_url',
+    'cover_path',
+    'cover_content',
+    'cover_created_at',
     'view_count',
     'like_count',
     'comment_count',
@@ -69,7 +72,33 @@ class Video extends Model
             'statistics_fetched_at' => 'datetime',
             'pasted_text_updated_at' => 'datetime',
             'pasted_images' => 'array',
+            'cover_content' => 'array',
+            'cover_created_at' => 'datetime',
         ];
+    }
+
+    /**
+     * 表紙（静止画）を作ってあるか。
+     */
+    public function hasCover(): bool
+    {
+        return $this->cover_path !== null;
+    }
+
+    /**
+     * 表紙の画像の URL。作り直すと URL が変わるよう、作った日時を付ける（古い画像がブラウザに残らないように）。
+     */
+    public function coverUrl(bool $download = false): ?string
+    {
+        if (! $this->hasCover()) {
+            return null;
+        }
+
+        return route('videos.cover', array_filter([
+            'video' => $this,
+            'v' => $this->cover_created_at?->timestamp,
+            'download' => $download ? 1 : null,
+        ]));
     }
 
     /**

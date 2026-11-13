@@ -1,5 +1,6 @@
 import type React from 'react';
 import type { SceneComponentProps } from './content';
+import { CoverScene } from './CoverScene';
 import { PlaceholderScene } from './PlaceholderScene';
 import { TextScene } from './TextScene';
 import { TitleScene } from './TitleScene';
@@ -9,6 +10,8 @@ import { TitleScene } from './TitleScene';
 const SCENES: Record<string, React.FC<SceneComponentProps>> = {
   'remotion.title': TitleScene,
   'remotion.text': TextScene,
+  // 情報源の表紙（静止画）専用。制作案の場面には使わない（Gemini に選ばせない）。
+  'remotion.cover': CoverScene,
 };
 
 export function componentFor(sceneType: string): React.FC<SceneComponentProps> {
