@@ -125,7 +125,7 @@ new #[Title('知識')] class extends Component
                 ->when($this->status !== '', fn ($query) => $query->where('status', $this->status))
                 ->when($this->type !== '', fn ($query) => $query->where('node_type', $this->type))
                 ->when($this->genre !== '', fn ($query) => $query->inGenre($this->genre)), self::SEMANTIC_LIMIT, self::SEMANTIC_MIN_SIMILARITY)
-            ->load('video')
+            ->load(['video', 'videoAnalysis.video'])
             ->loadCount(['outgoingEdges', 'incomingEdges', 'sources']);
 
         return new LengthAwarePaginator($nodes, $nodes->count(), self::SEMANTIC_LIMIT, 1);
@@ -148,7 +148,7 @@ new #[Title('知識')] class extends Component
                 ->whereLike('title', '%'.trim($this->q).'%')
                 ->orWhereHas('codeLinks', $codeLinkMatches)))
             ->when(trim($this->q) !== '', fn ($query) => $query->with(['codeLinks' => $codeLinkMatches]))
-            ->with('video')
+            ->with(['video', 'videoAnalysis.video'])
             ->withCount(['outgoingEdges', 'incomingEdges', 'sources'])
             ->orderByRaw("case status when 'candidate' then 0 when 'confirmed' then 1 else 2 end")
             ->latest('id')
@@ -168,6 +168,21 @@ new #[Title('知識')] class extends Component
             ->sortBy('id')
             ->unique('video_id')
             ->values();
+    }
+
+    /**
+     * 一覧のサムネールに出す情報源。動画ノードは自身、分析ノードは分析した情報源、概念は最初の出典の情報源。
+     * 削除済みの情報源は開けないので出さない。
+     */
+    public function thumbnailVideoFor(KnowledgeNode $node): ?Video
+    {
+        $video = $node->video
+            ?? $node->videoAnalysis?->video
+            ?? ($node->node_type === KnowledgeNode::TYPE_CONCEPT
+                ? $this->videoSourcesFor($node)->first(fn (KnowledgeSource $source) => ! $source->video->trashed())?->video
+                : null);
+
+        return $video?->trashed() ? null : $video;
     }
 
     /**
@@ -205,7 +220,12 @@ new #[Title('知識')] class extends Component
     }
 };
 ?>
-
+@php
+    // 一覧のサムネールの大きさ（px）。IMG_D は 2 行目以降の字下げに足す幅（サムネールの幅＋すき間 12px）。
+    $IMG_W = 64;
+    $IMG_H = 36;
+    $IMG_D = $IMG_W + 12;
+@endphp
 <div class="space-y-6">
     <h1 class="text-xl font-semibold">知識</h1>
 
@@ -287,6 +307,19 @@ new #[Title('知識')] class extends Component
                     {{-- 1 行目は折り返さない。名称だけが縮み、状態・件数・操作は常に右端にそろえる。 --}}
                     <div class="flex items-center gap-3">
                         <span class="w-16 shrink-0 text-xs text-[#706f6c] dark:text-[#A1A09A]">{{ $node->typeLabel() }}</span>
+                        {{-- 情報源一覧のカードと同じく、表紙があれば表紙、なければ元のサムネイル。情報源のないノードは幅だけ空けて名称の位置をそろえる。 --}}
+                        @php($thumbnailVideo = $this->thumbnailVideoFor($node))
+                        @if ($thumbnailVideo)
+                            <a href="{{ route('videos.show', $thumbnailVideo) }}" wire:navigate title="{{ $thumbnailVideo->title }}" style="width: {{ $IMG_W }}px; height: {{ $IMG_H }}px" class="block shrink-0 overflow-hidden rounded-[2px] bg-[#f0f0ec] dark:bg-[#1f1f1e]">
+                                @if ($thumbnailVideo->hasCover() || $thumbnailVideo->thumbnail_url)
+                                    <img src="{{ $thumbnailVideo->hasCover() ? $thumbnailVideo->coverUrl() : $thumbnailVideo->thumbnail_url }}" alt="「{{ $thumbnailVideo->title }}」を開く" width="{{ $IMG_W }}" height="{{ $IMG_H }}" class="h-full w-full object-cover" loading="lazy">
+                                @else
+                                    <span class="sr-only">「{{ $thumbnailVideo->title }}」を開く</span>
+                                @endif
+                            </a>
+                        @else
+                            <span style="width: {{ $IMG_W }}px" class="shrink-0" aria-hidden="true"></span>
+                        @endif
                         <a href="{{ route('knowledge.show', $node) }}" wire:navigate class="min-w-0 flex-1 truncate font-medium hover:underline">{{ $node->title }}</a>
                         <span class="flex shrink-0 items-center gap-3">
                             @isset($node->similarity)
@@ -306,17 +339,17 @@ new #[Title('知識')] class extends Component
                         </span>
                     </div>
                     @isset($node->match_reasons)
-                        <p class="pl-[4.75rem] text-xs text-[#706f6c] dark:text-[#A1A09A]">見つかった理由：{{ collect($node->match_reasons)->map(fn (string $reason) => KnowledgeSearch::REASON_LABELS[$reason])->implode('、') }}</p>
+                        <p style="padding-left: calc(4.75rem + {{ $IMG_D }}px)" class="text-xs text-[#706f6c] dark:text-[#A1A09A]">見つかった理由：{{ collect($node->match_reasons)->map(fn (string $reason) => KnowledgeSearch::REASON_LABELS[$reason])->implode('、') }}</p>
                     @endisset
                     @if ($node->relationLoaded('codeLinks') && $node->codeLinks->isNotEmpty())
-                        <div class="pl-[4.75rem] font-mono text-xs text-[#706f6c] dark:text-[#A1A09A]">
+                        <div style="padding-left: calc(4.75rem + {{ $IMG_D }}px)" class="font-mono text-xs text-[#706f6c] dark:text-[#A1A09A]">
                             @foreach ($node->codeLinks as $link)
                                 <span wire:key="node-{{ $node->id }}-link-{{ $link->id }}" class="block break-all">コード：{{ $link->path }}{{ $link->symbol ? " {$link->symbol}" : '' }}</span>
                             @endforeach
                         </div>
                     @endif
                     @if ($node->node_type === KnowledgeNode::TYPE_CONCEPT)
-                        <div class="space-y-1 pl-[4.75rem] text-xs">
+                        <div style="padding-left: calc(4.75rem + {{ $IMG_D }}px)" class="space-y-1 text-xs">
                             @if ($node->description)
                                 <p class="leading-relaxed text-[#706f6c] dark:text-[#A1A09A]">{{ $node->description }}</p>
                             @endif

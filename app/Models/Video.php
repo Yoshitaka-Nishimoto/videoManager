@@ -25,6 +25,7 @@ use Illuminate\Support\Str;
     'pasted_text_updated_at',
     'pasted_images',
     'genre',
+    'user_rating',
     'summary',
     'duration_seconds',
     'published_at',
@@ -65,6 +66,7 @@ class Video extends Model
     {
         return [
             'duration_seconds' => 'integer',
+            'user_rating' => 'integer',
             'published_at' => 'datetime',
             'view_count' => 'integer',
             'like_count' => 'integer',

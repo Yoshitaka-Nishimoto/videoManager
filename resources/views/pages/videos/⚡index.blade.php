@@ -39,7 +39,22 @@ new #[Title('情報源一覧')] class extends Component
 
     private const GENRE_NONE = 'none';
 
+    /** 一覧の並び順（数値の高い順）。ジャンルの絞り込みと組み合わせて使う。 */
+    public const SORTS = [
+        'registered' => '登録日の新しい順',
+        'rating' => 'ユーザ評価の高い順',
+        'views' => '再生回数の多い順',
+    ];
+
+    #[Url]
+    public string $sort = 'registered';
+
     public function updatedGenre(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSort(): void
     {
         $this->resetPage();
     }
@@ -119,6 +134,24 @@ new #[Title('情報源一覧')] class extends Component
     }
 
     /**
+     * カードで入力したユーザ評価（0〜100）をすぐ保存する。空にすると未評価に戻す。
+     */
+    public function setRating(Video $video, string $rating): void
+    {
+        $rating = trim($rating);
+
+        if ($rating !== '' && (! ctype_digit($rating) || (int) $rating > 100)) {
+            $this->addError("rating.{$video->id}", '評価は 0〜100 の整数で入力してください。');
+
+            return;
+        }
+
+        $this->resetErrorBag("rating.{$video->id}");
+        $video->update(['user_rating' => $rating === '' ? null : (int) $rating]);
+        unset($this->videos);
+    }
+
+    /**
      * @return LengthAwarePaginator<int, Video>
      */
     #[Computed]
@@ -128,6 +161,9 @@ new #[Title('情報源一覧')] class extends Component
             ->with('latestAnalysis')
             ->when($this->genre === self::GENRE_NONE, fn ($query) => $query->whereNull('genre'))
             ->when(array_key_exists($this->genre, VideoProduction::GENRES), fn ($query) => $query->where('genre', $this->genre))
+            // 未評価・統計のない情報源（Web ページなど）は後ろに回す。同じ値の中は登録の新しい順。
+            ->when($this->sort === 'rating', fn ($query) => $query->orderByRaw('user_rating desc nulls last'))
+            ->when($this->sort === 'views', fn ($query) => $query->orderByRaw('view_count desc nulls last'))
             ->latest('id')
             ->paginate(12);
     }
@@ -190,7 +226,12 @@ new #[Title('情報源一覧')] class extends Component
     </section>
 
     <section>
-        <div class="mb-4 flex justify-end text-sm">
+        <div class="mb-4 flex justify-end gap-2 text-sm">
+            <select wire:model.live="sort" aria-label="並び順" class="rounded-sm border border-[#19140035] bg-white px-2 py-1 dark:border-[#3E3E3A] dark:bg-[#161615]">
+                @foreach ($this::SORTS as $key => $name)
+                    <option value="{{ $key }}">{{ $name }}</option>
+                @endforeach
+            </select>
             <select wire:model.live="genre" aria-label="ジャンルで絞り込む" class="rounded-sm border border-[#19140035] bg-white px-2 py-1 dark:border-[#3E3E3A] dark:bg-[#161615]">
                 <option value="">すべてのジャンル</option>
                 @foreach (VideoProduction::GENRES as $key => $name)
@@ -245,7 +286,24 @@ new #[Title('情報源一覧')] class extends Component
                             </div>
                         </a>
                         {{-- リンクの中に置くと選ぶときに画面が移るため、リンクの外に置く。 --}}
-                        <div class="px-3 pb-3">
+                        <div class="space-y-2 px-3 pb-3">
+                            <label class="flex items-center gap-2 text-xs">
+                                <span class="shrink-0">ユーザ評価</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="1"
+                                    inputmode="numeric"
+                                    value="{{ $video->user_rating }}"
+                                    placeholder="未評価"
+                                    wire:change="setRating({{ $video->id }}, $event.target.value)"
+                                    aria-label="「{{ $video->title }}」のユーザ評価（0〜100）"
+                                    class="w-20 rounded-sm border border-[#19140035] bg-white px-2 py-1 text-xs dark:border-[#3E3E3A] dark:bg-[#161615]"
+                                >
+                                <span class="text-[#706f6c] dark:text-[#A1A09A]">/ 100</span>
+                            </label>
+                            @error("rating.{$video->id}") <p class="text-xs text-red-600">{{ $message }}</p> @enderror
                             <select
                                 wire:change="setGenre({{ $video->id }}, $event.target.value)"
                                 aria-label="「{{ $video->title }}」のジャンル"

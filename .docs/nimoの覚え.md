@@ -5,7 +5,7 @@ Ubuntu > sail artisan dev
 pg_dump
 sail exec pgsql pg_dump -U sail -d laravel -Fc > xxx.dump
 . 戻す
-pgsql pg_restore -U sail -d laravel --clean --if-exists  < xxx.dump 
+pgsql pg_restore -U sail -d video --clean --if-exists  < xxx.dump 
 
 sail exec -T pgsql pg_restore -U sail -d laravel --clean --if-exists < storage/app/backups/laravel_20261108_164458.dump
 

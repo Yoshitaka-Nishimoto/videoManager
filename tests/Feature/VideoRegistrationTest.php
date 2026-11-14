@@ -85,6 +85,56 @@ class VideoRegistrationTest extends TestCase
             ->assertSee('未設定の動画');
     }
 
+    public function test_the_user_rating_is_saved_from_the_video_list(): void
+    {
+        $video = Video::factory()->create();
+
+        Livewire::test('pages::videos.index')
+            ->call('setRating', $video->id, '85')
+            ->assertHasNoErrors();
+        $this->assertSame(85, $video->refresh()->user_rating);
+
+        Livewire::test('pages::videos.index')
+            ->call('setRating', $video->id, '101')
+            ->assertHasErrors("rating.{$video->id}")
+            ->call('setRating', $video->id, '-1')
+            ->assertHasErrors("rating.{$video->id}")
+            ->call('setRating', $video->id, '12.5')
+            ->assertHasErrors("rating.{$video->id}");
+        $this->assertSame(85, $video->refresh()->user_rating);
+
+        Livewire::test('pages::videos.index')
+            ->call('setRating', $video->id, '0')
+            ->assertHasNoErrors();
+        $this->assertSame(0, $video->refresh()->user_rating);
+
+        Livewire::test('pages::videos.index')->call('setRating', $video->id, '');
+        $this->assertNull($video->refresh()->user_rating);
+    }
+
+    public function test_the_video_list_can_be_sorted_together_with_the_genre_filter(): void
+    {
+        Video::factory()->create(['title' => '評価高AI', 'genre' => 'ai', 'user_rating' => 90, 'view_count' => 100]);
+        Video::factory()->create(['title' => '未評価AI', 'genre' => 'ai', 'user_rating' => null, 'view_count' => 5000]);
+        Video::factory()->create(['title' => '評価低AI', 'genre' => 'ai', 'user_rating' => 10, 'view_count' => null]);
+        Video::factory()->create(['title' => '投資の動画', 'genre' => 'investment', 'user_rating' => 100, 'view_count' => 9999]);
+
+        $component = Livewire::test('pages::videos.index')->set('genre', 'ai');
+        $titles = fn () => $component->instance()->videos->pluck('title')->all();
+
+        $component->set('sort', 'rating');
+        $this->assertSame(['評価高AI', '評価低AI', '未評価AI'], $titles());
+
+        $component->set('sort', 'views');
+        $this->assertSame(['未評価AI', '評価高AI', '評価低AI'], $titles());
+
+        $component->set('sort', 'registered');
+        $this->assertSame(['評価低AI', '未評価AI', '評価高AI'], $titles());
+
+        $component->set('genre', '')->set('sort', 'rating');
+        $this->assertSame(['投資の動画', '評価高AI', '評価低AI', '未評価AI'], $titles());
+    }
+
     public function test_the_video_list_renders(): void
     {
         Video::factory()->create(['title' => '登録済みの動画']);

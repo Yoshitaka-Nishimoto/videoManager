@@ -66,6 +66,37 @@ class KnowledgePagesTest extends TestCase
             ->assertSee('1:02〜1:38');
     }
 
+    public function test_the_list_shows_a_thumbnail_linking_to_the_source(): void
+    {
+        $videoNode = KnowledgeNode::factory()->forVideo()->create();
+        $videoNode->video->update(['thumbnail_url' => 'https://i.ytimg.com/vi/aaa/hqdefault.jpg']);
+
+        $analysisNode = KnowledgeNode::factory()->forAnalysis()->create();
+        $analysisVideo = $analysisNode->videoAnalysis->video;
+        $analysisVideo->update(['thumbnail_url' => 'https://i.ytimg.com/vi/bbb/hqdefault.jpg']);
+
+        $concept = KnowledgeNode::factory()->create();
+        $source = KnowledgeSource::factory()->create([
+            'sourceable_type' => $concept->getMorphClass(),
+            'sourceable_id' => $concept->id,
+        ]);
+        $source->video->update(['thumbnail_url' => 'https://i.ytimg.com/vi/ccc/hqdefault.jpg']);
+
+        $deletedSource = KnowledgeNode::factory()->forVideo()->create();
+        $deletedSource->video->update(['thumbnail_url' => 'https://i.ytimg.com/vi/ddd/hqdefault.jpg']);
+        $deletedSource->video->delete();
+
+        $this->get('/knowledge?status=')
+            ->assertOk()
+            ->assertSee('https://i.ytimg.com/vi/aaa/hqdefault.jpg')
+            ->assertSee(route('videos.show', $videoNode->video_id))
+            ->assertSee('https://i.ytimg.com/vi/bbb/hqdefault.jpg')
+            ->assertSee(route('videos.show', $analysisVideo))
+            ->assertSee('https://i.ytimg.com/vi/ccc/hqdefault.jpg')
+            ->assertSee(route('videos.show', $source->video_id))
+            ->assertDontSee('https://i.ytimg.com/vi/ddd/hqdefault.jpg');
+    }
+
     public function test_the_list_filters_by_the_genre_of_productions(): void
     {
         $aiDecision = KnowledgeNode::factory()->decision()->create(['title' => 'AI の設計判断']);
